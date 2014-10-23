@@ -1,0 +1,3 @@
+#!/bin/bash
+# Update all svn repos in directories in the current path
+find . -maxdepth 1 -type d -print0 | xargs -0 -n1 -i{} -P5  sh -c 'cd "{}"; svn up'

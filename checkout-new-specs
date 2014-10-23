@@ -1,0 +1,9 @@
+#!/bin/bash
+# Check out all spec files that haven't already been checked out
+# into subdirectories under the current directory.
+set -e
+#export BASE_SVN='svn+ssh://svn.mageia.org/svn/packages/cauldron/'
+export BASE_SVN='svn://svn.mageia.org/svn/packages/cauldron/'
+svn ls "$BASE_SVN" >all-specs.lst
+echo $(wc -l all-specs.lst) packages to check/download
+xargs -n1 -i{} -P4 sh -c "test -d {} || svn co '$BASE_SVN'{}current/SPECS {}" <all-specs.lst

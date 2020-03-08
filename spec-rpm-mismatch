@@ -3,14 +3,20 @@
 
 Placed into the public domain by
 Daniel Fandrich <dan@coneharvesters.com>
-October 2014
+Started October 2014
+
+Usage: spec-rpm-mismatch >report.html 2>errors.log
+ within directory prepared by checkout-all-specs
+
+If this is not run on the same Mageia version as the target, then temporarily
+add a "%dist mgaX" line to ~/.rpmmacros where X matches SRPM_DISTRO_RELEASE below.
 
 TODO:
     %autopatch seems to cause patches to be loaded from SOURCES and gives warnings if not
 
     objectify this program; e.g. class for handling external package DB
 
-    highlight in the html mismatch section packages not ending in .mga5
+    highlight in the html mismatch section packages not ending in .mga8
 
     fix warnings from .spec files with weird macros calling external programs
 
@@ -32,12 +38,12 @@ basicConfig(level=INFO, format='%(levelname)s:%(message)s')
 #SRPM_SOURCE_TEMPLATE = 'ftp://distrib-coffee.ipsl.jussieu.fr/pub/linux/Mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
 #SRPM_SOURCE_TEMPLATE = 'ftp://ftp.uni-erlangen.de/mirrors/Mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
 #SRPM_SOURCE_TEMPLATE = 'ftp://mirror.tuxinator.org/mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
-#SRPM_SOURCE_TEMPLATE = 'ftp://ftp5.gwdg.de/pub/linux/mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
-SRPM_SOURCE_TEMPLATE = 'ftp://mirror.netcologne.de/mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
+SRPM_SOURCE_TEMPLATE = 'ftp://ftp5.gwdg.de/pub/linux/mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
+#SRPM_SOURCE_TEMPLATE = 'ftp://mirror.netcologne.de/mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
 SRPM_VERSION = 'cauldron'
 SRPM_MEDIAS = ['tainted','nonfree','core']
 SRPM_SECTION = 'release'
-SRPM_DISTRO_RELEASE = '5'  # mgaX
+SRPM_DISTRO_RELEASE = '8'  # mgaX
 
 SPEC_STYLE_UNKNOWN = 0
 SPEC_STYLE_MASSIVE = 1
@@ -199,7 +205,7 @@ def get_srpm_name_stub_from_spec(specfile):
     '''
     # %{EVR} includes the mgaX version, which might not match that of the
     # machine on which this script is running, so construct the version ourselves
-    cmd = 'rpmspec -q -D"distro_release "%s --queryformat "%%{NAME}-%%{VERSION}-%%{RELEASE}\n" %s' % \
+    cmd = 'rpmspec -q -D"dist .mga"%s --queryformat "%%{NAME}-%%{VERSION}-%%{RELEASE}\n" %s' % \
             (commands.mkarg(SRPM_DISTRO_RELEASE)[1:], commands.mkarg(specfile))
     pipe = os.popen(cmd, 'r')
     line = pipe.readline()

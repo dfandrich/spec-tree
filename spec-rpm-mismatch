@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''Show packages whose spec files specify an RPM version that does not exist
 
 Placed into the public domain by
@@ -7,9 +7,6 @@ Started October 2014
 
 Usage: spec-rpm-mismatch >report.html 2>errors.log
  within directory prepared by checkout-all-specs
-
-If this is not run on the same Mageia version as the target, then temporarily
-add a "%dist mgaX" line to ~/.rpmmacros where X matches SRPM_DISTRO_RELEASE below.
 
 TODO:
     %autopatch seems to cause patches to be loaded from SOURCES and gives warnings if not
@@ -21,14 +18,13 @@ TODO:
     fix warnings from .spec files with weird macros calling external programs
 
 '''
-
-from cgi import escape
 import collections
-import commands
 import glob
-from logging import info, error, fatal, disable, basicConfig, INFO
+from html import escape
+from logging import info, warning, error, fatal, basicConfig, INFO
 import os
 import re
+import shlex
 import stat
 import sys
 import time
@@ -41,7 +37,7 @@ basicConfig(level=INFO, format='%(levelname)s:%(message)s')
 SRPM_SOURCE_TEMPLATE = 'ftp://ftp5.gwdg.de/pub/linux/mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
 #SRPM_SOURCE_TEMPLATE = 'ftp://mirror.netcologne.de/mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
 SRPM_VERSION = 'cauldron'
-SRPM_MEDIAS = ['tainted','nonfree','core']
+SRPM_MEDIAS = ['tainted', 'nonfree', 'core']
 SRPM_SECTION = 'release'
 SRPM_DISTRO_RELEASE = '8'  # mgaX
 
@@ -83,8 +79,9 @@ def get_packagers():
     'Retrieve a dict containing packagers for each package'
     packagers = collections.defaultdict(lambda : UNKNOWN_PACKAGER)
     cmd = 'mgarepo maintdb get'
+    info("Running: %s", cmd)
     pipe = os.popen(cmd, 'r')
-    while 1:
+    while True:
         line = pipe.readline()
         if not line:
             break
@@ -121,19 +118,19 @@ def rpm_versions(rpm_base):
     match = package_base_re.match(rpm_base)
     if match:
         return (match.group(1), match.group(2), match.group(3))
-    return None
+    return (None, None, None)
 
 def get_local_package_list():
     'Get a list of local packages with spec files to check'
     spec_packages = glob.glob('*')
-    return filter(lambda f: stat.S_ISDIR(os.stat(f).st_mode), spec_packages)
+    return [f for f in spec_packages if stat.S_ISDIR(os.stat(f).st_mode)]
 
 def retrieve_all_packages():
     '''Retrieve a list of all packages available in the distribution.
 
     This could be changed to use the synthesis files instead.
     '''
-    if SRPM_SOURCE_TEMPLATE.split(':')[0] not in ('ftp','ftps','file'):
+    if SRPM_SOURCE_TEMPLATE.split(':')[0] not in ('ftp', 'ftps', 'file'):
         # Only some URLs are supported due to the need for curl's -l flag
         return {}, {}
     all_rpms = {}
@@ -142,11 +139,10 @@ def retrieve_all_packages():
         url = SRPM_SOURCE_TEMPLATE % {'version': SRPM_VERSION, 'media': media, 'section': SRPM_SECTION}
         listing = retrieve_dir_contents(url)
         if listing == None:
-            fatal('Aborting: Error retrieving listing from ' + url)
-            return 2
+            raise RuntimeError('Error retrieving listing from ' + url)
 
         rpm_re = re.compile('^.*\.rpm$')
-        rpms = filter(lambda f: rpm_re.match(f), listing)
+        rpms = [f for f in listing if rpm_re.match(f)]
         if not rpms:
             error('Warning: No results from ' + url)
 
@@ -156,6 +152,7 @@ def retrieve_all_packages():
             package = package_name(rpm)
             if not package:
                 error('Cannot determine package name for ' + rpm)
+                continue
             rpm_base = rpm_base_name(rpm)
             all_packages[package] = rpm_base
             all_rpms[rpm_base] = True
@@ -186,9 +183,10 @@ def determine_spec_tree_style(package):
 def retrieve_dir_contents(url):
     'Return a directory listing of the remote URL'
     listing = []
-    cmd = 'curl -s -l --ftp-method SINGLECWD --ssl ' + commands.mkarg(url)
+    cmd = 'curl -s -l --ftp-method SINGLECWD --ssl ' + shlex.quote(url)
+    info("Running: %s", cmd)
     pipe = os.popen(cmd, 'r')
-    while 1:
+    while True:
         line = pipe.readline()
         if not line:
             break
@@ -206,7 +204,8 @@ def get_srpm_name_stub_from_spec(specfile):
     # %{EVR} includes the mgaX version, which might not match that of the
     # machine on which this script is running, so construct the version ourselves
     cmd = 'rpmspec -q -D"dist .mga"%s --queryformat "%%{NAME}-%%{VERSION}-%%{RELEASE}\n" %s' % \
-            (commands.mkarg(SRPM_DISTRO_RELEASE)[1:], commands.mkarg(specfile))
+            (shlex.quote(SRPM_DISTRO_RELEASE), shlex.quote(specfile))
+    #info("Running: %s", cmd)
     pipe = os.popen(cmd, 'r')
     line = pipe.readline()
     if pipe.close():
@@ -225,45 +224,45 @@ def make_spec_path(package, spec_style):
     return None
 
 def print_text_report(packagers, no_srpm_file, errors, version_mismatch, version_match):
-    print
+    print()
     print('Packages with no associated SRPM file on the server')
     for package in no_srpm_file:
-        print packagers[package], package
+        print(packagers[package], package)
 
-    print
+    print()
     print('Could not determine version number from these packages')
     for package in errors:
-        print packagers[package], package, spec_path
+        print(packagers[package], package)
 
-    print
+    print()
     print('Version missing on server')
     for package, have_name, should_have in version_mismatch:
-        print packagers[package], package, have_name, should_have
+        print(packagers[package], package, have_name, should_have)
 
     if 1:
-        print
+        print()
         print('Version match on server')
         for package, srpm_name in version_match:
-            print packagers[package], srpm_name
+            print(packagers[package], srpm_name)
 
 def print_html_report(packagers, no_srpm_file, errors, version_mismatch, version_match):
-    print HTML_HEADER
-    print '<h1>%s (mga%s) Spec Build Report as of %s</h1>' % \
-        (SRPM_VERSION, SRPM_DISTRO_RELEASE, time.strftime('%Y-%m-%d'))
+    print(HTML_HEADER)
+    print('<h1>%s (mga%s) Spec Build Report as of %s</h1>' % \
+        (SRPM_VERSION, SRPM_DISTRO_RELEASE, time.strftime('%Y-%m-%d')))
 
     if no_srpm_file:
-        print '<a href="#no_rpm">Missing RPMs</a><br>'
+        print('<a href="#no_rpm">Missing RPMs</a><br>')
 
     if errors:
-        print '<a href="#errors">Spec parsing errors</a><br>'
+        print('<a href="#errors">Spec parsing errors</a><br>')
 
-    print '<a href="#wrong_version">Wrong RPM version</a><br>'
+    print('<a href="#wrong_version">Wrong RPM version</a><br>')
 
     if version_match:
-        print '<a href="#match_version">Matching RPM versions</a><br>'
+        print('<a href="#match_version">Matching RPM versions</a><br>')
 
     if no_srpm_file:
-        print '''
+        print('''
         <a name="no_rpm"></a>
         <h2>Spec files with no matching RPM of any version</h2>
         There is no package SRPM in the %s release matching the associated
@@ -278,18 +277,18 @@ def print_html_report(packagers, no_srpm_file, errors, version_mismatch, version
           <th>Maintainer</th>
           <th>Package</th>
         </tr>
-        ''' % (SRPM_VERSION, len(no_srpm_file))
+        ''' % (SRPM_VERSION, len(no_srpm_file)))
         for package in no_srpm_file:
-            print '<tr>'
-            print '<td>' + escape(packagers[package]) + '</td>'
-            print '<td><a href="%s">%s</a></td>' % \
+            print('<tr>')
+            print('<td>' + escape(packagers[package]) + '</td>')
+            print('<td><a href="%s">%s</a></td>' % \
                      (SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package)), \
-                    escape(package))
-            print '</tr>'
-        print '</table>'
+                    escape(package)))
+            print('</tr>')
+        print('</table>')
 
     if errors:
-        print '''
+        print('''
         <a name="errors"></a>
         <h2>Could not determine version number from these packages</h2>
         This could be due to a syntax error in the .spec file or
@@ -300,16 +299,16 @@ def print_html_report(packagers, no_srpm_file, errors, version_mismatch, version
         <tr>
           <th>Package</th>
         </tr>
-        ''' % len(errors)
+        ''' % len(errors))
         for package in errors:
-            print '<tr>'
-            print '<td><a href="%s">%s</a></td>' % \
+            print('<tr>')
+            print('<td><a href="%s">%s</a></td>' % \
                      (SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package)), \
-                    escape(package))
-            print '</tr>'
-        print '</table>'
+                    escape(package)))
+            print('</tr>')
+        print('</table>')
 
-    print '''
+    print('''
     <a name="wrong_version"></a>
     <h2>Wrong RPM version</h2>
     The latest version of the SRPM does not match the version in the .spec
@@ -324,7 +323,7 @@ def print_html_report(packagers, no_srpm_file, errors, version_mismatch, version
       <th>RPM version</th>
       <th>Spec version</th>
     </tr>
-     ''' % len(version_mismatch)
+     ''' % len(version_mismatch))
     for package, have_name, should_have in version_mismatch:
         have_package, have_ver, have_rel = rpm_versions(have_name)
         should_have_package, should_have_ver, should_have_rel = rpm_versions(should_have)
@@ -333,42 +332,42 @@ def print_html_report(packagers, no_srpm_file, errors, version_mismatch, version
             match_class = ' class="release"'
         else:
             match_class = ''
-        print '<tr%s>' % match_class
-        print '<td>' + escape(packagers[package]) + '</td>'
-        print '<td>' + escape(have_name) + '</td>'
-        print '<td><a href="%s">%s</a></td>' % \
+        print('<tr%s>' % match_class)
+        print('<td>' + escape(packagers[package]) + '</td>')
+        print('<td>' + escape(have_name) + '</td>')
+        print('<td><a href="%s">%s</a></td>' % \
                  (SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package)), \
-                escape(should_have))
-        print '</tr>'
-    print '</table>'
+                escape(should_have)))
+        print('</tr>')
+    print('</table>')
 
     if version_match:
-        print '''
+        print('''
         <a name="match_version"></a>
         <h2>Spec &amp; RPM versions match</h2>
         The version of the SRPM matches the version in the .spec file. This is
         the desired state, so these are the only packages without error.
         <p>
-        '''
+        ''')
         if len(version_match) > 300:
-            print '%d spec files have matching RPMs (not shown)' % len(version_match)
+            print('%d spec files have matching RPMs (not shown)' % len(version_match))
         else:
-            print '''
+            print('''
             (%d packages)
             <table>
             <tr>
               <th>Maintainer</th>
               <th>Spec/RPM version</th>
             </tr>
-             ''' % len(version_match)
+             ''' % len(version_match))
             for package, srpm_name in version_match:
-                print '<tr>'
-                print '<td>' + escape(packagers[package]) + '</td>'
-                print '<td>' + escape(srpm_name) + '</td>'
-                print '</tr>'
-            print '</table>'
+                print('<tr>')
+                print('<td>' + escape(packagers[package]) + '</td>')
+                print('<td>' + escape(srpm_name) + '</td>')
+                print('</tr>')
+            print('</table>')
 
-    print HTML_FOOTER
+    print(HTML_FOOTER)
 
 def main():
     spec_packages = get_local_package_list()
@@ -386,8 +385,8 @@ def main():
 
     all_rpms, all_packages = retrieve_all_packages()
 
-    info('%d total SRPM packages found on server' % len(all_packages.keys()))
-    if len(all_packages.keys()) == 0:
+    info('%d total SRPM packages found on server' % len(all_packages))
+    if len(all_packages) == 0:
         fatal('No packages found. Try a different mirror.')
         return 2
 
@@ -409,7 +408,7 @@ def main():
             info(last_letter)
 
         spec_path = make_spec_path(package, spec_style)
-        if not all_packages.has_key(package):
+        if package not in all_packages:
             no_srpm_file.append(package)
             continue
         srpm_name = get_srpm_name_stub_from_spec(spec_path)
@@ -423,7 +422,7 @@ def main():
         if not canon_srpm_name:
             errors.append(package)
             continue
-        if not all_rpms.has_key(canon_srpm_name):
+        if canon_srpm_name not in all_rpms:
             version_mismatch.append((package, all_packages[package], canon_srpm_name))
         else:
             version_match.append((package, canon_srpm_name))

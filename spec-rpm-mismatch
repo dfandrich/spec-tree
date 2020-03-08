@@ -87,8 +87,7 @@ def get_packagers():
             break
         package, packager = tuple(line.strip().split())
         packagers[package] = packager
-    rc = pipe.close()
-    if rc:
+    if pipe.close():
         return {}
     return packagers
 
@@ -191,8 +190,7 @@ def retrieve_dir_contents(url):
         if not line:
             break
         listing.append(line.strip())
-    rc = pipe.close()
-    if rc:
+    if pipe.close():
         return None
     return listing
 
@@ -207,10 +205,12 @@ def get_srpm_name_stub_from_spec(specfile):
             (shlex.quote(SRPM_DISTRO_RELEASE), shlex.quote(specfile))
     #info("Running: %s", cmd)
     pipe = os.popen(cmd, 'r')
+    # There may be many RPMs generated, but the one is the one with the SRPM
     line = pipe.readline()
-    if pipe.close():
-        return None
     if not line:
+        return None
+    _ = pipe.read()  # ignore the rest
+    if pipe.close():
         return None
     return line.strip()
 
@@ -413,6 +413,7 @@ def main():
             continue
         srpm_name = get_srpm_name_stub_from_spec(spec_path)
         if not srpm_name:
+            error('Could not determine name stub for %s', spec_path)
             errors.append(package)
             continue
         # Some RPMs define distro_section which appends the section to the RPM
@@ -420,6 +421,7 @@ def main():
         # using it so all names are canonical.
         canon_srpm_name = rpm_base_name(srpm_name + '.src.rpm')
         if not canon_srpm_name:
+            error('Could not determine base name for %s.src.rpm', srpm_name)
             errors.append(package)
             continue
         if canon_srpm_name not in all_rpms:

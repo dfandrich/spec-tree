@@ -253,10 +253,10 @@ def print_html_report(packagers, no_srpm_file, errors, version_mismatch, version
     if no_srpm_file:
         print('<a href="#no_rpm">Missing RPMs</a><br>')
 
+    print('<a href="#wrong_version">Wrong RPM version</a><br>')
+
     if errors:
         print('<a href="#errors">Spec parsing errors</a><br>')
-
-    print('<a href="#wrong_version">Wrong RPM version</a><br>')
 
     if version_match:
         print('<a href="#match_version">Matching RPM versions</a><br>')
@@ -281,27 +281,6 @@ def print_html_report(packagers, no_srpm_file, errors, version_mismatch, version
         for package in no_srpm_file:
             print('<tr>')
             print('<td>' + escape(packagers[package]) + '</td>')
-            print('<td><a href="%s">%s</a></td>' % \
-                     (SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package)), \
-                    escape(package)))
-            print('</tr>')
-        print('</table>')
-
-    if errors:
-        print('''
-        <a name="errors"></a>
-        <h2>Could not determine version number from these packages</h2>
-        This could be due to a syntax error in the .spec file or
-        an internal error in the script generating this report.
-        <p>
-        (%d packages)
-        <table>
-        <tr>
-          <th>Package</th>
-        </tr>
-        ''' % len(errors))
-        for package in errors:
-            print('<tr>')
             print('<td><a href="%s">%s</a></td>' % \
                      (SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package)), \
                     escape(package)))
@@ -340,6 +319,32 @@ def print_html_report(packagers, no_srpm_file, errors, version_mismatch, version
                 escape(should_have)))
         print('</tr>')
     print('</table>')
+
+    if errors:
+        print('''
+        <a name="errors"></a>
+        <h2>Could not determine version number from these packages</h2>
+        This could be due to a syntax error in the .spec file, a missing
+        %include file (such files are not normally available to this reporting
+        script so this is expected), a missing utility used in command
+        substitution (BuildRequires: are not normally available to this
+        reporting script so this is expected), a mismatch between the SVN
+        directory and the .spec file name, or an internal error in the script
+        generating this report.
+        <p>
+        (%d packages)
+        <table>
+        <tr>
+          <th>Package</th>
+        </tr>
+        ''' % len(errors))
+        for package in errors:
+            print('<tr>')
+            print('<td><a href="%s">%s</a></td>' % \
+                     (SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package)), \
+                    escape(package)))
+            print('</tr>')
+        print('</table>')
 
     if version_match:
         print('''

@@ -11,8 +11,6 @@ Usage: spec-rpm-mismatch >report.html 2>errors.log
 TODO:
     %autopatch seems to cause patches to be loaded from SOURCES and gives warnings if not
 
-    objectify this program; e.g. class for handling external package DB
-
     highlight in the html mismatch section packages not ending in .mga8
 
     fix warnings from .spec files with weird macros calling external programs
@@ -31,7 +29,7 @@ import stat
 import sys
 import textwrap
 import time
-from typing import Dict, List, Tuple
+from typing import Dict, List, Set, Tuple
 
 
 basicConfig(level=INFO, format='%(levelname)s:%(message)s')
@@ -141,43 +139,6 @@ def get_local_package_list() -> List[str]:
     return [f for f in spec_packages if stat.S_ISDIR(os.stat(f).st_mode)]
 
 
-def retrieve_all_packages() -> Tuple[Dict[str, bool], Dict[str, str]] :
-    '''Retrieve a list of all packages available in the distribution.
-
-    This could be changed to use the synthesis files instead.
-    '''
-    if SRPM_SOURCE_TEMPLATE.split(':')[0] not in ('ftp', 'ftps', 'file'):
-        # Only some URLs are supported due to the need for curl's -l flag
-        return {}, {}
-    all_rpms = {}
-    all_packages = {}
-    for media in SRPM_MEDIAS:#['tainted']:
-        url = SRPM_SOURCE_TEMPLATE % {'version': SRPM_VERSION, 'media': media, 'section': SRPM_SECTION}
-        listing = retrieve_dir_contents(url)
-        if not listing:
-            raise RuntimeError('Error retrieving listing from ' + url)
-
-        rpm_re = re.compile(r'^.*\.rpm$')
-        rpms = [f for f in listing if rpm_re.match(f)]
-        if not rpms:
-            error('Warning: No results from ' + url)
-
-        info('%d packages found in media %s', len(rpms), media)
-
-        for rpm in rpms:
-            package = package_name(rpm)
-            if not package:
-                error('Cannot determine package name for ' + rpm)
-                continue
-            rpm_base = rpm_base_name(rpm)
-            if not rpm_base:
-                error('Cannot determine base name for ' + rpm)
-                continue
-            all_packages[package] = rpm_base
-            all_rpms[rpm_base] = True
-    return all_rpms, all_packages
-
-
 def determine_spec_tree_style(package: str) -> int:
     'Figure out why kind of style of SVN checkout is in use'
     try:
@@ -217,6 +178,46 @@ def retrieve_dir_contents(url: str) -> List[str]:
     return listing
 
 
+def retrieve_all_packages() -> Tuple[Set[str], Dict[str, str]] :
+    '''Retrieve a list of all packages available in the distribution.
+
+    This could be changed to use the urpmi synthesis files instead.
+    '''
+    all_rpms = set()
+    all_packages = {}
+
+    # Only some schemes are supported due to the need for curl's -l flag
+    if SRPM_SOURCE_TEMPLATE.split(':')[0] not in ('ftp', 'ftps'):
+        error('SRPM URL type %s not supported', SRPM_SOURCE_TEMPLATE)
+    else:
+        for media in SRPM_MEDIAS:
+            url = SRPM_SOURCE_TEMPLATE % {'version': SRPM_VERSION, 'media': media, 'section': SRPM_SECTION}
+            listing = retrieve_dir_contents(url)
+            if not listing:
+                raise RuntimeError('Error retrieving listing from ' + url)
+
+            rpm_re = re.compile(r'^.*\.rpm$')
+            rpms = [f for f in listing if rpm_re.match(f)]
+            if not rpms:
+                error('Warning: No results from ' + url)
+
+            info('%d packages found in media %s', len(rpms), media)
+
+            for rpm in rpms:
+                package = package_name(rpm)
+                if not package:
+                    error('Cannot determine package name for ' + rpm)
+                    continue
+                rpm_base = rpm_base_name(rpm)
+                if not rpm_base:
+                    error('Cannot determine base name for ' + rpm)
+                    continue
+                all_packages[package] = rpm_base
+                all_rpms.add(rpm_base)
+
+    return all_rpms, all_packages
+
+
 def get_srpm_name_stub_from_spec(specfile: str) -> str:
     '''Determine the start of the SRPM name created by the given spec file.
 
@@ -250,163 +251,196 @@ def make_spec_path(package: str, spec_style: int) -> str:
     raise RuntimeError('Unsupported spec style %d' % spec_style)
 
 
-def print_text_report(packagers: Dict[str, str], no_srpm_file: List[str], errors: List[str],
-        version_mismatch: List[Tuple[str, str, str]], version_match: List[Tuple[str, str]]):
-    print()
-    print('Packages with no associated SRPM file on the server')
-    for package in no_srpm_file:
-        print(packagers[package], package)
+class PackageProcessor:
 
-    print()
-    print('Could not determine version number from these packages')
-    for package in errors:
-        print(packagers[package], package)
+    def __init__(self, all_rpms: Set[str], all_packages: Dict[str, str], spec_style: int):
+        self.all_rpms = all_rpms
+        self.all_packages = all_packages
+        self.spec_style = spec_style
 
-    print()
-    print('Version missing on server')
-    for package, have_name, should_have in version_mismatch:
-        print(packagers[package], package, have_name, should_have)
+        self.no_srpm_file = []  # type: List[str]
+        self.errors = []  # type: List[str]
+        self.version_mismatch = []  # type: List[Tuple[str, str, str]]
+        self.version_match = []  # type: List[Tuple[str, str]]
 
-    if True:
-        print()
-        print('Version match on server')
-        for package, srpm_name in version_match:
-            print(packagers[package], srpm_name)
-
-
-def print_html_report(packagers: Dict[str, str], no_srpm_file: List[str], errors: List[str],
-        version_mismatch: List[Tuple[str, str, str]], version_match: List[Tuple[str, str]]):
-    print(HTML_HEADER)
-    print(f'<h1>{SRPM_VERSION} (mga{SRPM_DISTRO_RELEASE}) Spec Build Report as of {time.strftime("%Y-%m-%d")}</h1>')
-
-    if no_srpm_file:
-        print('<a href="#no_rpm">Missing RPMs</a><br>')
-
-    print('<a href="#wrong_version">Wrong RPM version</a><br>')
-
-    if errors:
-        print('<a href="#errors">Spec parsing errors</a><br>')
-
-    if version_match:
-        print('<a href="#match_version">Matching RPM versions</a><br>')
-
-    if no_srpm_file:
-        print(textwrap.dedent(f'''
-            <a name="no_rpm"></a>
-            <h2>Spec files with no matching RPM of any version</h2>
-
-            There is no package SRPM in the {SRPM_VERSION} release matching the associated
-            .spec file. This may be because the package was imported but never
-            successfully built, or because the package has been obsoleted and
-            removed from the distribution but the .spec file was never moved to
-            packages/obsolete.
-            <p>
-            ({len(no_srpm_file)} packages)
-            <table>
-            <tr>
-              <th>Maintainer</th>
-              <th>Package</th>
-            </tr>
-        '''))
-        for package in no_srpm_file:
-            url = SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package))
-            print(textwrap.dedent(f'''
-                <tr>
-                  <td>{escape(packagers[package])}</td>
-                  <td><a href="{url}">{escape(package)}</a></td>
-                </tr>
-            '''))
-        print('</table>')
-
-    print(textwrap.dedent(f'''
-        <a name="wrong_version"></a>
-        <h2>Wrong RPM version</h2>
-
-        The latest version of the SRPM does not match the version in the .spec
-        file.  This may be because no-one has submitted the latest version to be
-        built, or because the last attempted build failed. Shaded lines are
-        packages with equal versions that differ only in the release number.
-        <p>
-        ({len(version_mismatch)} packages)
-        <table>
-        <tr>
-          <th>Maintainer</th>
-          <th>RPM version</th>
-          <th>Spec version</th>
-        </tr>
-     '''))
-    for package, have_name, should_have in version_mismatch:
-        _, have_ver, _ = rpm_versions(have_name)
-        _, should_have_ver, _ = rpm_versions(should_have)
-        match_class = ' class="release"' if have_ver == should_have_ver else ''
-        url = SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package))
-        print(textwrap.dedent(f'''
-                <tr{match_class}>
-                  <td>{escape(packagers[package])}</td>
-                  <td>{escape(have_name)}</td>
-                  <td><a href="{url}">{escape(should_have)}</a></td>
-                </tr>
-            '''))
-    print('</table>')
-
-    if errors:
-        print(textwrap.dedent(f'''
-            <a name="errors"></a>
-            <h2>Could not determine version number from these packages</h2>
-
-            This could be due to a syntax error in the .spec file, a missing
-            %include file (such files are not normally available to this reporting
-            script so this is expected), a missing utility used in command
-            substitution (BuildRequires: are not normally available to this
-            reporting script so this is expected), a mismatch between the SVN
-            directory and the .spec file name, or an internal error in the script
-            generating this report.
-            <p>
-            ({len(errors)} packages)
-            <table>
-            <tr>
-              <th>Package</th>
-            </tr>
-        '''))
-        for package in errors:
-            url = SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package))
-            print(textwrap.dedent(f'''
-                <tr>
-                  <td><a href="{url}">{escape(package)}</a></td>
-                </tr>
-            '''))
-        print('</table>')
-
-    if version_match:
-        print('''
-        <a name="match_version"></a>
-        <h2>Spec &amp; RPM versions match</h2>
-
-        The version of the SRPM matches the version in the .spec file. This is
-        the desired state, so these are the only packages without error.
-        <p>
-        ''')
-        if len(version_match) > 300:
-            print('%d spec files have matching RPMs (not shown)' % len(version_match))
+    def process_package(self, package: str):
+        spec_path = make_spec_path(package, self.spec_style)
+        if package not in self.all_packages:
+            self.no_srpm_file.append(package)
+            return
+        srpm_name = get_srpm_name_stub_from_spec(spec_path)
+        if not srpm_name:
+            error('Could not determine name stub for %s', spec_path)
+            self.errors.append(package)
+            return
+        # Some RPMs define distro_section which appends the section to the RPM
+        # base name (e.g. lgeneral-1.2.3-3.mga5.nonfree). Strip this off before
+        # using it so all names are canonical.
+        canon_srpm_name = rpm_base_name(srpm_name + '.src.rpm')
+        if not canon_srpm_name:
+            error('Could not determine base name for %s.src.rpm', srpm_name)
+            self.errors.append(package)
+            return
+        if canon_srpm_name not in self.all_rpms:
+            self.version_mismatch.append((package, self.all_packages[package], canon_srpm_name))
         else:
+            self.version_match.append((package, canon_srpm_name))
+
+    def print_text_report(self, packagers: Dict[str, str]):
+        print()
+        print('Packages with no associated SRPM file on the server')
+        for package in self.no_srpm_file:
+            print(packagers[package], package)
+
+        print()
+        print('Could not determine version number from these packages')
+        for package in self.errors:
+            print(packagers[package], package)
+
+        print()
+        print('Version missing on server')
+        for package, have_name, should_have in self.version_mismatch:
+            print(packagers[package], package, have_name, should_have)
+
+        if True:
+            print()
+            print('Version match on server')
+            for package, srpm_name in self.version_match:
+                print(packagers[package], srpm_name)
+
+    def print_html_report(self, packagers: Dict[str, str]):
+        print(HTML_HEADER)
+        print(f'<h1>{SRPM_VERSION} (mga{SRPM_DISTRO_RELEASE}) Spec Build Report as of {time.strftime("%Y-%m-%d")}</h1>')
+
+        if self.no_srpm_file:
+            print('<a href="#no_rpm">Missing RPMs</a><br>')
+
+        print('<a href="#wrong_version">Wrong RPM version</a><br>')
+
+        if self.errors:
+            print('<a href="#errors">Spec parsing errors</a><br>')
+
+        if self.version_match:
+            print('<a href="#match_version">Matching RPM versions</a><br>')
+
+        if self.no_srpm_file:
             print(textwrap.dedent(f'''
-                ({len(version_match)} packages)
+                <a name="no_rpm"></a>
+                <h2>Spec files with no matching RPM of any version</h2>
+
+                There is no package SRPM in the {SRPM_VERSION} release matching the associated
+                .spec file. This may be because the package was imported but never
+                successfully built, or because the package has been obsoleted and
+                removed from the distribution but the .spec file was never moved to
+                packages/obsolete.
+                <p>
+                ({len(self.no_srpm_file)} packages)
                 <table>
                 <tr>
                   <th>Maintainer</th>
-                  <th>Spec/RPM version</th>
+                  <th>Package</th>
                 </tr>
             '''))
-            for package, srpm_name in version_match:
+            for package in self.no_srpm_file:
+                url = SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package))
                 print(textwrap.dedent(f'''
                     <tr>
                       <td>{escape(packagers[package])}</td>
-                      <td>{escape(srpm_name)}</td>
+                      <td><a href="{url}">{escape(package)}</a></td>
                     </tr>
                 '''))
             print('</table>')
 
-    print(HTML_FOOTER)
+        print(textwrap.dedent(f'''
+            <a name="wrong_version"></a>
+            <h2>Wrong RPM version</h2>
+
+            The latest version of the SRPM does not match the version in the .spec
+            file.  This may be because no-one has submitted the latest version to be
+            built, or because the last attempted build failed. Shaded lines are
+            packages with equal versions that differ only in the release number.
+            <p>
+            ({len(self.version_mismatch)} packages)
+            <table>
+            <tr>
+              <th>Maintainer</th>
+              <th>RPM version</th>
+              <th>Spec version</th>
+            </tr>
+         '''))
+        for package, have_name, should_have in self.version_mismatch:
+            _, have_ver, _ = rpm_versions(have_name)
+            _, should_have_ver, _ = rpm_versions(should_have)
+            match_class = ' class="release"' if have_ver == should_have_ver else ''
+            url = SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package))
+            print(textwrap.dedent(f'''
+                    <tr{match_class}>
+                      <td>{escape(packagers[package])}</td>
+                      <td>{escape(have_name)}</td>
+                      <td><a href="{url}">{escape(should_have)}</a></td>
+                    </tr>
+                '''))
+        print('</table>')
+
+        if self.errors:
+            print(textwrap.dedent(f'''
+                <a name="errors"></a>
+                <h2>Could not determine version number from these packages</h2>
+
+                This could be due to a syntax error in the .spec file, a missing
+                %include file (such files are not normally available to this reporting
+                script so this is expected), a missing utility used in command
+                substitution (BuildRequires: are not normally available to this
+                reporting script so this is expected), a mismatch between the SVN
+                directory and the .spec file name, or an internal error in the script
+                generating this report.
+                <p>
+                ({len(self.errors)} packages)
+                <table>
+                <tr>
+                  <th>Package</th>
+                </tr>
+            '''))
+            for package in self.errors:
+                url = SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package))
+                print(textwrap.dedent(f'''
+                    <tr>
+                      <td><a href="{url}">{escape(package)}</a></td>
+                    </tr>
+                '''))
+            print('</table>')
+
+        if self.version_match:
+            print('''
+            <a name="match_version"></a>
+            <h2>Spec &amp; RPM versions match</h2>
+
+            The version of the SRPM matches the version in the .spec file. This is
+            the desired state, so these are the only packages without error.
+            <p>
+            ''')
+            if len(self.version_match) > 300:
+                print('%d spec files have matching RPMs (not shown)' % len(self.version_match))
+            else:
+                print(textwrap.dedent(f'''
+                    ({len(self.version_match)} packages)
+                    <table>
+                    <tr>
+                      <th>Maintainer</th>
+                      <th>Spec/RPM version</th>
+                    </tr>
+                '''))
+                for package, srpm_name in self.version_match:
+                    print(textwrap.dedent(f'''
+                        <tr>
+                          <td>{escape(packagers[package])}</td>
+                          <td>{escape(srpm_name)}</td>
+                        </tr>
+                    '''))
+                print('</table>')
+
+        print(HTML_FOOTER)
+
 
 
 def main() -> int:
@@ -435,11 +469,9 @@ def main() -> int:
         warning('Packager list could not be retrieved. Packagers will not be shown.')
     info('%d packagers known' % len(packagers))
 
+    proc = PackageProcessor(all_rpms, all_packages, spec_style)
+
     info('Starting check of spec files')
-    no_srpm_file = []
-    errors = []
-    version_mismatch = []
-    version_match = []
     spec_packages.sort()
     last_letter = ''
     for package in spec_packages:
@@ -447,32 +479,12 @@ def main() -> int:
             last_letter = package[0]
             info(last_letter)
 
-        spec_path = make_spec_path(package, spec_style)
-        if package not in all_packages:
-            no_srpm_file.append(package)
-            continue
-        srpm_name = get_srpm_name_stub_from_spec(spec_path)
-        if not srpm_name:
-            error('Could not determine name stub for %s', spec_path)
-            errors.append(package)
-            continue
-        # Some RPMs define distro_section which appends the section to the RPM
-        # base name (e.g. lgeneral-1.2.3-3.mga5.nonfree). Strip this off before
-        # using it so all names are canonical.
-        canon_srpm_name = rpm_base_name(srpm_name + '.src.rpm')
-        if not canon_srpm_name:
-            error('Could not determine base name for %s.src.rpm', srpm_name)
-            errors.append(package)
-            continue
-        if canon_srpm_name not in all_rpms:
-            version_mismatch.append((package, all_packages[package], canon_srpm_name))
-        else:
-            version_match.append((package, canon_srpm_name))
+        proc.process_package(package)
 
     if TEXT_REPORT:
-        print_text_report(packagers, no_srpm_file, errors, version_mismatch, version_match)
+        proc.print_text_report(packagers)
     else:
-        print_html_report(packagers, no_srpm_file, errors, version_mismatch, version_match)
+        proc.print_html_report(packagers)
 
     info('Report complete')
 

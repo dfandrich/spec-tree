@@ -11,8 +11,6 @@ Usage: spec-rpm-mismatch >report.html 2>errors.log
 TODO:
     %autopatch seems to cause patches to be loaded from SOURCES and gives warnings if not
 
-    highlight in the html mismatch section packages not ending in .mga8
-
     fix warnings from .spec files with weird macros calling external programs
 '''
 
@@ -75,6 +73,9 @@ HTML_HEADER = textwrap.dedent('''
       .release {
         background-color: #f0f0ff;
       }
+      .distrib {
+        background-color: #fff0f0;
+      }
     </style>
     </head>
     <body>
@@ -125,15 +126,15 @@ def rpm_base_name(rpm: str) -> str:
 PACKAGE_BASE_RE = re.compile(r'^(.*)(-[\w\.+]+)-([\w\.]+)\.mga(\d+)')
 
 
-def rpm_versions(rpm_base: str) -> Tuple[str, str, str]:
+def rpm_versions(rpm_base: str) -> Tuple[str, str, str, str]:
     '''Determine name, version, release from an RPM base name
 
-    Return: (name, version, release)
+    Return: (name, version, release, distrib)
     '''
     match = PACKAGE_BASE_RE.match(rpm_base)
     if match:
-        return (match.group(1), match.group(2), match.group(3))
-    return ('', '', '')
+        return (match.group(1), match.group(2), match.group(3), match.group(4))
+    return ('', '', '', '')
 
 
 def get_local_package_list() -> List[str]:
@@ -366,8 +367,10 @@ class PackageProcessor:
 
             The latest version of the SRPM does not match the version in the .spec
             file.  This may be because no-one has submitted the latest version to be
-            built, or because the last attempted build failed. Shaded lines are
-            packages with equal versions that differ only in the release number.
+            built, or because the last attempted build failed. Blue shaded lines are
+            packages with equal versions but differ only in the release number.
+            Red shaded lines are packages that haven't been rebuilt since the
+            last distribution release.
             <p>
             ({len(self.version_mismatch)} packages)
             <table>
@@ -378,9 +381,13 @@ class PackageProcessor:
             </tr>
          '''))
         for package, have_name, should_have in self.version_mismatch:
-            _, have_ver, _ = rpm_versions(have_name)
-            _, should_have_ver, _ = rpm_versions(should_have)
-            match_class = ' class="release"' if have_ver == should_have_ver else ''
+            _, have_ver, _, have_distrib = rpm_versions(have_name)
+            _, should_have_ver, _, should_have_distrib = rpm_versions(should_have)
+            match_class = ''
+            if have_distrib != should_have_distrib:
+                match_class = ' class="distrib"'
+            elif have_ver == should_have_ver:
+                match_class = ' class="release"'
             url = SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package))
             print(textwrap.dedent(f'''
                     <tr{match_class}>

@@ -14,10 +14,10 @@ TODO:
     highlight in the html mismatch section packages not ending in .mga8
 
     fix warnings from .spec files with weird macros calling external programs
-
 '''
 
 import collections
+import concurrent.futures
 import enum
 import glob
 from html import escape
@@ -35,6 +35,9 @@ from typing import Dict, List, Set, Tuple
 basicConfig(level=INFO, format='%(levelname)s:%(message)s')
 
 TEXT_REPORT = False
+
+# Parallelize parsing with twice the number of available cores
+PARALLEL_THREADS = 2 * len(os.sched_getaffinity(0))
 
 #SRPM_SOURCE_TEMPLATE = 'ftp://distrib-coffee.ipsl.jussieu.fr/pub/linux/Mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
 #SRPM_SOURCE_TEMPLATE = 'ftp://ftp.uni-erlangen.de/mirrors/Mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
@@ -286,6 +289,12 @@ class PackageProcessor:
         else:
             self.version_match.append((package, canon_srpm_name))
 
+    def sort(self):
+        self.no_srpm_file.sort()
+        self.errors.sort()
+        self.version_mismatch.sort(key=lambda x: x[0])
+        self.version_match.sort(key=lambda x: x[0])
+
     def print_text_report(self, packagers: Dict[str, str]):
         print()
         print('Packages with no associated SRPM file on the server')
@@ -473,14 +482,16 @@ def main() -> int:
 
     info('Starting check of spec files')
     spec_packages.sort()
-    last_letter = ''
-    for package in spec_packages:
-        if last_letter != package[0]:
-            last_letter = package[0]
-            info(last_letter)
 
-        proc.process_package(package)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=PARALLEL_THREADS) as executor:
+        futures = (executor.submit(proc.process_package, package) for package in spec_packages)
+        for n, future in enumerate(concurrent.futures.as_completed(futures)):
+            if n % 100 == 0:
+                # Provide some visual feedback on progress
+                info('%d/%d (%d%%)', n, len(spec_packages), 100 * n / len(spec_packages))
+            future.result()  # call this so reveal any exceptions
 
+    proc.sort()
     if TEXT_REPORT:
         proc.print_text_report(packagers)
     else:

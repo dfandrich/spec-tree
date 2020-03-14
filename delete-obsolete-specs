@@ -1,0 +1,29 @@
+#!/bin/bash
+# Delete spec files that no longer exist in SVN.
+set -e
+#export BASE_SVN='svn+ssh://svn.mageia.org/svn/packages/cauldron/'
+export BASE_SVN='svn://svn.mageia.org/svn/packages/cauldron/'
+readonly SPECSLIST="$(mktemp)"
+readonly HAVELIST="$(mktemp)"
+readonly DELETELIST="$(mktemp)"
+trap 'rm -f "${SPECSLIST}" "${HAVELIST}" "${DELETELIST}"' EXIT
+
+svn ls "$BASE_SVN" | sed 's@/$@@' | sort >"${SPECSLIST}"
+echo $(wc -l "${SPECSLIST}" | awk '{print $1}') packages in SVN
+ls  | sort >"${HAVELIST}"
+echo $(wc -l "${HAVELIST}" | awk '{print $1}') packages locally
+
+comm -2 -3 "${HAVELIST}" "${SPECSLIST}" > "${DELETELIST}"
+readonly NUMDELETE="$(wc -l "${DELETELIST}" | awk '{print $1}')"
+echo "$NUMDELETE" packages to delete
+if [[ "$NUMDELETE" -ge 30 ]]; then
+    echo "That's a lot of packages! Something may have gone wrong. Aborting to be safe."
+    exit 1
+fi
+if [[ "$NUMDELETE" -eq 0 ]]; then
+    echo "Nothing to delete."
+    exit
+fi
+echo Deleting...
+cat "${DELETELIST}"
+xargs -i{} rm -r {} < "${DELETELIST}"

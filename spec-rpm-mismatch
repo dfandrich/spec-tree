@@ -28,6 +28,7 @@ import sys
 import textwrap
 import time
 from typing import Dict, List, Set, Tuple
+import urllib.parse
 
 
 basicConfig(level=INFO, format='%(levelname)s:%(message)s')
@@ -40,8 +41,9 @@ PARALLEL_THREADS = 2 * len(os.sched_getaffinity(0))
 #SRPM_SOURCE_TEMPLATE = 'ftp://distrib-coffee.ipsl.jussieu.fr/pub/linux/Mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
 #SRPM_SOURCE_TEMPLATE = 'ftp://ftp.uni-erlangen.de/mirrors/Mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
 #SRPM_SOURCE_TEMPLATE = 'ftp://mirror.tuxinator.org/mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
-SRPM_SOURCE_TEMPLATE = 'ftp://ftp5.gwdg.de/pub/linux/mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
 #SRPM_SOURCE_TEMPLATE = 'ftp://mirror.netcologne.de/mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
+SRPM_SOURCE_TEMPLATE = 'ftp://ftp5.gwdg.de/pub/linux/mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
+
 SRPM_VERSION = 'cauldron'
 SRPM_MEDIAS = ['tainted', 'nonfree', 'core']
 SRPM_SECTION = 'release'
@@ -168,6 +170,18 @@ def determine_spec_tree_style(package: str) -> int:
 
 def retrieve_dir_contents(url: str) -> List[str]:
     'Return a directory listing of the remote URL'
+    # Only some schemes are supported due to the need for curl's -l flag
+    u = urllib.parse.urlparse(url)
+    if u.scheme in ('ftp', 'ftps'):
+        return retrieve_dir_contents_curl(url)
+
+    if u.scheme == 'file' and u.netloc in ('localhost', ''):
+        return os.listdir(u.path)
+
+    raise RuntimeError('SRPM URL type %s not supported' % url)
+
+def retrieve_dir_contents_curl(url: str) -> List[str]:
+    'Return a directory listing of the remote URL'
     listing = []
     cmd = 'curl -s -l --ftp-method SINGLECWD --ssl ' + shlex.quote(url)
     info("Running: %s", cmd)
@@ -190,34 +204,30 @@ def retrieve_all_packages() -> Tuple[Set[str], Dict[str, str]] :
     all_rpms = set()
     all_packages = {}
 
-    # Only some schemes are supported due to the need for curl's -l flag
-    if SRPM_SOURCE_TEMPLATE.split(':')[0] not in ('ftp', 'ftps'):
-        error('SRPM URL type %s not supported', SRPM_SOURCE_TEMPLATE)
-    else:
-        for media in SRPM_MEDIAS:
-            url = SRPM_SOURCE_TEMPLATE % {'version': SRPM_VERSION, 'media': media, 'section': SRPM_SECTION}
-            listing = retrieve_dir_contents(url)
-            if not listing:
-                raise RuntimeError('Error retrieving listing from ' + url)
+    for media in SRPM_MEDIAS:
+        url = SRPM_SOURCE_TEMPLATE % {'version': SRPM_VERSION, 'media': media, 'section': SRPM_SECTION}
+        listing = retrieve_dir_contents(url)
+        if not listing:
+            raise RuntimeError('Error retrieving listing from ' + url)
 
-            rpm_re = re.compile(r'^.*\.rpm$')
-            rpms = [f for f in listing if rpm_re.match(f)]
-            if not rpms:
-                error('Warning: No results from ' + url)
+        rpm_re = re.compile(r'^.*\.rpm$')
+        rpms = [f for f in listing if rpm_re.match(f)]
+        if not rpms:
+            error('Warning: No results from ' + url)
 
-            info('%d packages found in media %s', len(rpms), media)
+        info('%d packages found in media %s', len(rpms), media)
 
-            for rpm in rpms:
-                package = package_name(rpm)
-                if not package:
-                    error('Cannot determine package name for ' + rpm)
-                    continue
-                rpm_base = rpm_base_name(rpm)
-                if not rpm_base:
-                    error('Cannot determine base name for ' + rpm)
-                    continue
-                all_packages[package] = rpm_base
-                all_rpms.add(rpm_base)
+        for rpm in rpms:
+            package = package_name(rpm)
+            if not package:
+                error('Cannot determine package name for ' + rpm)
+                continue
+            rpm_base = rpm_base_name(rpm)
+            if not rpm_base:
+                error('Cannot determine base name for ' + rpm)
+                continue
+            all_packages[package] = rpm_base
+            all_rpms.add(rpm_base)
 
     return all_rpms, all_packages
 
@@ -483,7 +493,7 @@ def main() -> int:
     packagers = get_packagers()
     if not packagers:
         warning('Packager list could not be retrieved. Packagers will not be shown.')
-    info('%d packagers known' % len(packagers))
+    info('%d packages+packagers known' % len(packagers))
 
     proc = PackageProcessor(all_rpms, all_packages, spec_style)
 

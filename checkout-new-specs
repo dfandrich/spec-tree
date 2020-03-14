@@ -4,6 +4,9 @@
 set -e
 #export BASE_SVN='svn+ssh://svn.mageia.org/svn/packages/cauldron/'
 export BASE_SVN='svn://svn.mageia.org/svn/packages/cauldron/'
-svn ls "$BASE_SVN" >all-specs.lst
-echo $(wc -l all-specs.lst) packages to check/download
-xargs -n1 -i{} -P4 sh -c "test -d {} || svn co '$BASE_SVN'{}current/SPECS {}" <all-specs.lst
+readonly SPECSLIST="$(mktemp)"
+trap 'rm -f "${SPECSLIST}"' EXIT
+
+svn ls "$BASE_SVN" >"${SPECSLIST}"
+echo $(wc -l "${SPECSLIST}" | awk '{print $1}') packages to check/download
+xargs -n1 -i{} -P4 sh -c "test -d {} || svn co '$BASE_SVN'{}current/SPECS {}" <"${SPECSLIST}"

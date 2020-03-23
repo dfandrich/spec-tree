@@ -9,14 +9,13 @@ Usage: spec-rpm-mismatch >report.html 2>errors.log
  within directory prepared by checkout-all-specs
 
 TODO:
-    %autopatch seems to cause patches to be loaded from SOURCES and gives warnings if not
-
     fix warnings from .spec files with weird macros calling external programs
 '''
 
 import collections
 import concurrent.futures
 import enum
+import getopt
 import glob
 from html import escape
 from logging import info, warning, error, fatal, basicConfig, INFO
@@ -33,21 +32,22 @@ import urllib.parse
 
 basicConfig(level=INFO, format='%(levelname)s:%(message)s')
 
-TEXT_REPORT = False
+# Parallelize spec parsing with a bit more the number of available cores
+PARALLEL_THREADS = int(1.5 * len(os.sched_getaffinity(0)))
 
-# Parallelize parsing with twice the number of available cores
-PARALLEL_THREADS = 2 * len(os.sched_getaffinity(0))
+#SRPM_SOURCE_TEMPLATE = 'ftp://distrib-coffee.ipsl.jussieu.fr/pub/linux/Mageia/distrib/{version}/SRPMS/{media}/{section}/'
+#SRPM_SOURCE_TEMPLATE = 'ftp://ftp.uni-erlangen.de/mirrors/Mageia/distrib/{version}/SRPMS/{media}/{section}/'
+#SRPM_SOURCE_TEMPLATE = 'ftp://mirror.tuxinator.org/mageia/distrib/{version}/SRPMS/{media}/{section}/'
+#SRPM_SOURCE_TEMPLATE = 'ftp://mirror.netcologne.de/mageia/distrib/{version}/SRPMS/{media}/{section}/'
 
-#SRPM_SOURCE_TEMPLATE = 'ftp://distrib-coffee.ipsl.jussieu.fr/pub/linux/Mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
-#SRPM_SOURCE_TEMPLATE = 'ftp://ftp.uni-erlangen.de/mirrors/Mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
-#SRPM_SOURCE_TEMPLATE = 'ftp://mirror.tuxinator.org/mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
-#SRPM_SOURCE_TEMPLATE = 'ftp://mirror.netcologne.de/mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
-SRPM_SOURCE_TEMPLATE = 'ftp://ftp5.gwdg.de/pub/linux/mageia/distrib/%(version)s/SRPMS/%(media)s/%(section)s/'
+SRPM_SOURCE_TEMPLATE = 'ftp://ftp5.gwdg.de/pub/linux/mageia/distrib/{version}/SRPMS/{media}/{section}/'
+LOCAL_PACKAGE_GLOB = '*'
+SRPM_DISTRO_RELEASE = '8'  # Default distro release number, i.e. the X in mgaX
 
+# Substituted into the SRPM_SOURCE_TEMPLATE and used in report titles
 SRPM_VERSION = 'cauldron'
 SRPM_MEDIAS = ['tainted', 'nonfree', 'core']
 SRPM_SECTION = 'release'
-SRPM_DISTRO_RELEASE = '8'  # mgaX
 
 class SpecStyle(enum.IntEnum):
     SPEC_STYLE_UNKNOWN = enum.auto()
@@ -64,7 +64,7 @@ SPEC_STYLE_NAME = {
 
 UNKNOWN_PACKAGER = '?'
 
-SVNWEB_URL_TEMPLATE = 'https://svnweb.mageia.org/packages/%s/%s/current/SPECS/%s.spec'
+SVNWEB_URL_TEMPLATE = 'https://svnweb.mageia.org/packages/{version}/{package}/current/SPECS/{package}.spec'
 
 HTML_HEADER = textwrap.dedent('''
     <!DOCTYPE html>
@@ -139,10 +139,10 @@ def rpm_versions(rpm_base: str) -> Tuple[str, str, str, str]:
     return ('', '', '', '')
 
 
-def get_local_package_list() -> List[str]:
+def get_local_package_list(package_glob: str) -> List[str]:
     'Get a list of local packages with spec files to check'
-    spec_packages = glob.glob('*')
-    return [f for f in spec_packages if stat.S_ISDIR(os.stat(f).st_mode)]
+    spec_packages = glob.glob(package_glob)
+    return [os.path.basename(f) for f in spec_packages if stat.S_ISDIR(os.stat(f).st_mode)]
 
 
 def determine_spec_tree_style(package: str) -> int:
@@ -196,7 +196,7 @@ def retrieve_dir_contents_curl(url: str) -> List[str]:
     return listing
 
 
-def retrieve_all_packages() -> Tuple[Set[str], Dict[str, str]] :
+def retrieve_all_packages(srpm_source: str) -> Tuple[Set[str], Dict[str, str]] :
     '''Retrieve a list of all packages available in the distribution.
 
     This could be changed to use the urpmi synthesis files instead.
@@ -205,7 +205,7 @@ def retrieve_all_packages() -> Tuple[Set[str], Dict[str, str]] :
     all_packages = {}
 
     for media in SRPM_MEDIAS:
-        url = SRPM_SOURCE_TEMPLATE % {'version': SRPM_VERSION, 'media': media, 'section': SRPM_SECTION}
+        url = srpm_source.format(version=SRPM_VERSION, media=media, section=SRPM_SECTION)
         listing = retrieve_dir_contents(url)
         if not listing:
             raise RuntimeError('Error retrieving listing from ' + url)
@@ -232,16 +232,15 @@ def retrieve_all_packages() -> Tuple[Set[str], Dict[str, str]] :
     return all_rpms, all_packages
 
 
-def get_srpm_name_stub_from_spec(specfile: str) -> str:
+def get_srpm_name_stub_from_spec(specfile: str, release: str) -> str:
     '''Determine the start of the SRPM name created by the given spec file.
 
     This returns a name like 'foo-1.23-4'
     '''
     # %dist includes the mgaX version of the current machine by default, which
-    # might not match that of SRPM_DISTRO_RELEASE, so construct the version
-    # ourselves.
-    cmd = 'rpmspec -q -D"dist .mga"%s --queryformat "%%{NAME}-%%{VERSION}-%%{RELEASE}\n" %s' % \
-            (shlex.quote(SRPM_DISTRO_RELEASE), shlex.quote(specfile))
+    # might not match that of release, so construct the version ourselves.
+    cmd = 'rpmspec -q -D"dist ."%s --queryformat "%%{NAME}-%%{VERSION}-%%{RELEASE}\n" %s' % \
+            (shlex.quote(release), shlex.quote(specfile))
     #info("Running: %s", cmd)
     pipe = os.popen(cmd, 'r')
     # There may be many RPMs generated, but the one is the one with the SRPM
@@ -267,10 +266,12 @@ def make_spec_path(package: str, spec_style: int) -> str:
 
 class PackageProcessor:
 
-    def __init__(self, all_rpms: Set[str], all_packages: Dict[str, str], spec_style: int):
+    def __init__(self, all_rpms: Set[str], all_packages: Dict[str, str], spec_style: int,
+            release: str):
         self.all_rpms = all_rpms
         self.all_packages = all_packages
         self.spec_style = spec_style
+        self.release = release
 
         self.no_srpm_file = []  # type: List[str]
         self.errors = []  # type: List[str]
@@ -282,7 +283,7 @@ class PackageProcessor:
         if package not in self.all_packages:
             self.no_srpm_file.append(package)
             return
-        srpm_name = get_srpm_name_stub_from_spec(spec_path)
+        srpm_name = get_srpm_name_stub_from_spec(spec_path, self.release)
         if not srpm_name:
             error('Could not determine name stub for %s', spec_path)
             self.errors.append(package)
@@ -330,7 +331,7 @@ class PackageProcessor:
 
     def print_html_report(self, packagers: Dict[str, str]):
         print(HTML_HEADER)
-        print(f'<h1>{SRPM_VERSION} (mga{SRPM_DISTRO_RELEASE}) Spec Build Report as of {time.strftime("%Y-%m-%d")}</h1>')
+        print(f'<h1>{SRPM_VERSION} ({self.release}) Spec Build Report as of {time.strftime("%Y-%m-%d")}</h1>')
 
         if self.no_srpm_file:
             print('<a href="#no_rpm">Missing RPMs</a><br>')
@@ -362,7 +363,7 @@ class PackageProcessor:
                 </tr>
             '''))
             for package in self.no_srpm_file:
-                url = SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package))
+                url = SVNWEB_URL_TEMPLATE.format(version=SRPM_VERSION, package=escape(package))
                 print(textwrap.dedent(f'''
                     <tr>
                       <td>{escape(packagers[package])}</td>
@@ -398,7 +399,7 @@ class PackageProcessor:
                 match_class = ' class="distrib"'
             elif have_ver == should_have_ver:
                 match_class = ' class="release"'
-            url = SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package))
+            url = SVNWEB_URL_TEMPLATE.format(version=SRPM_VERSION, package=escape(package))
             print(textwrap.dedent(f'''
                     <tr{match_class}>
                       <td>{escape(packagers[package])}</td>
@@ -428,7 +429,7 @@ class PackageProcessor:
                 </tr>
             '''))
             for package in self.errors:
-                url = SVNWEB_URL_TEMPLATE % (SRPM_VERSION, escape(package), escape(package))
+                url = SVNWEB_URL_TEMPLATE.format(version=SRPM_VERSION, package=escape(package))
                 print(textwrap.dedent(f'''
                     <tr>
                       <td><a href="{url}">{escape(package)}</a></td>
@@ -469,10 +470,45 @@ class PackageProcessor:
 
 
 
-def main() -> int:
-    spec_packages = get_local_package_list()
+def main(argv: List[str]) -> int:
+    try:
+        optlist, args = getopt.getopt(argv[1:], 'hl:r:s:t')
+    except getopt.GetoptError as err:
+        fatal('Invalid command-line option: %s', err)
+        return 1
+
+    if args:
+        fatal('Unsupported command-line argument(s): %s', ' '.join(args))
+        return 1
+
+    release = 'mga' + SRPM_DISTRO_RELEASE
+    local_packages = LOCAL_PACKAGE_GLOB
+    srpm_source = SRPM_SOURCE_TEMPLATE
+    text_report = False
+
+    for o, v in optlist:
+        if o == '-l':
+            local_packages = v
+        elif o == '-r':
+            release = 'mga' + v
+        elif o == '-s':
+            srpm_source = v
+        elif o == '-t':
+            text_report = True
+        elif o == '-h':
+            fatal('Usage: %s [-r release] | [-l local_package_glob] | [-s srpm_source_url]', argv[0])
+            return 1
+
+    info('Expected distro release: %s', release)
+    info('Local package specs found in: %s', local_packages)
+    info('SRPMS found in : %s', srpm_source)
+    info('Checking version: %s', SRPM_VERSION)
+    info('Checking medias: %s', ', '.join(SRPM_MEDIAS))
+    info('Checking media section: %s', SRPM_SECTION)
+
+    spec_packages = get_local_package_list(local_packages)
     if len(spec_packages) == 0:
-        fatal('No package directories found')
+        fatal('No package directories found in %s', local_packages)
         return 1
 
     canary_package = spec_packages[-1]
@@ -483,7 +519,7 @@ def main() -> int:
 
     info('%d package directories found' % len(spec_packages))
 
-    all_rpms, all_packages = retrieve_all_packages()
+    all_rpms, all_packages = retrieve_all_packages(srpm_source)
 
     info('%d total SRPM packages found on server' % len(all_packages))
     if len(all_packages) == 0:
@@ -495,7 +531,7 @@ def main() -> int:
         warning('Packager list could not be retrieved. Packagers will not be shown.')
     info('%d packages+packagers known' % len(packagers))
 
-    proc = PackageProcessor(all_rpms, all_packages, spec_style)
+    proc = PackageProcessor(all_rpms, all_packages, spec_style, release)
 
     info('Starting check of spec files')
     spec_packages.sort()
@@ -509,7 +545,7 @@ def main() -> int:
             future.result()  # call this so reveal any exceptions
 
     proc.sort()
-    if TEXT_REPORT:
+    if text_report:
         proc.print_text_report(packagers)
     else:
         proc.print_html_report(packagers)
@@ -520,4 +556,4 @@ def main() -> int:
 
 
 if __name__=='__main__':
-    sys.exit(main())
+    sys.exit(main(sys.argv))

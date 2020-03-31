@@ -1,0 +1,30 @@
+#!/bin/bash
+# Find spec files matching a regex and create a list of them with their maintainers
+set -e
+readonly TMPFILE="$(mktemp)"
+readonly TMP2FILE="$(mktemp)"
+readonly TMP3FILE="$(mktemp)"
+readonly MAINTFILE="$(mktemp)"
+trap 'rm -f "${TMPFILE}" "${TMP2FILE}" "${TMP3FILE}" "${MAINTFILE}"' 0
+
+# For consistent sorting
+export LC_ALL=C
+find . -name '*.spec' -print0 | \
+  xargs -0 -n32 grep -lP "$@" | \
+  sed -e 's@^.*/@@' -e 's/\.spec$//' | \
+  sort -u > "${TMPFILE}"
+wc -l < "${TMPFILE}" | tr -d '\n' 1>&2
+echo ' matches' 1>&2
+
+mgarepo maintdb get | sort -u > "${MAINTFILE}"
+wc -l < "${MAINTFILE}" | tr -d '\n' 1>&2
+echo ' maintainers' 1>&2
+
+# Packages with maintainers
+join "${TMPFILE}" "${MAINTFILE}" > "${TMP2FILE}"
+
+awk '{print $1}' "${TMP2FILE}" > "${TMP3FILE}"
+comm -23 "${TMPFILE}" "${TMP3FILE}" | \
+    sed 's/$/ ?/' | \
+    sort "${TMP2FILE}" - | \
+    tr ' ' '\t'

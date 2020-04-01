@@ -1,5 +1,8 @@
 #!/bin/bash
 # Delete spec files that no longer exist in SVN.
+# This will do a recursive deletion of the entire directory.
+# It will NOT check if there are outstanding changes in the directory first
+# but will unilaterally delete them.
 set -e
 #export BASE_SVN='svn+ssh://svn.mageia.org/svn/packages/cauldron/'
 export BASE_SVN='svn://svn.mageia.org/svn/packages/cauldron/'

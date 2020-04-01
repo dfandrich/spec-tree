@@ -1,3 +1,5 @@
 #!/bin/bash
 # Update all svn repos in directories in the current path
-find . -maxdepth 1 -type d -print0 | xargs -0 -n1 -i{} -P5  sh -c 'cd "{}"; svn up'
+# The svn server has a limited number of connections, and they run out
+# and updates fail with -P12.
+find . -maxdepth 1 -type d -print0 | xargs -0 -n1 -i{} -P8  sh -c 'cd "{}"; svn up'

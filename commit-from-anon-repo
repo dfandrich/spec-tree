@@ -1,0 +1,26 @@
+#!/bin/bash
+# Commit a change from an svn checkout that was checked out anonymously.
+# This is done by temporarily changing the URL to svn+ssh: from svn:
+if [[ "$1" != '-m' ]] ; then
+    echo Usage: "$0" -m comment file_in_repo '[file2_in_repo...]'
+    exit
+fi
+shift
+COMMENT="$1"
+shift
+
+for f in "$@"; do
+    D="$(dirname "$f")"
+    echo "$D"
+    cd "$D" || { echo Error: could not cd "$D"; continue; }
+    OLDU="$(svn info --show-item url)"
+    NEWU="$(sed 's/^svn:/svn+ssh:/' <<<"$OLDU")"
+    if [[ -z "$OLDU" || "$OLDU" == "$NEWU" ]]; then
+        echo Error: URL could not be converted at "$D"
+    else
+        svn relocate "$OLDU" "$NEWU" &&
+            svn ci -m "${COMMENT}" &&
+            svn relocate "$NEWU" "$OLDU" &&
+            svn up
+    fi
+done

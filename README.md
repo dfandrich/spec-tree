@@ -32,9 +32,11 @@ Populate a new, empty TOP directory like this:
 To update the spec files later, run this:
 
     cd TOP
-    delete-obsolete-specs
     update-all-specs
-    checkout-new-specs
+
+This will delete obsolete directories, checkout new ones and update existing
+ones. To skip the delete and checkout new steps, use the `--update-only`
+option.
 
 The spec files are checked out anonymously, for speed, which means that you
 can't check in a change to a spec file directly. Instead, use the
@@ -45,7 +47,9 @@ can't check in a change to a spec file directly. Instead, use the
 This script operates by temporarily changing the repo URL from an anonymous one
 to a SSH one, checking in the file, then changing the URL back. If something
 goes wrong during the check-in, this might leave the repo with the SSH URL
-which you should manually fix for speed and consistency.
+which you should manually fix for speed and consistency. The arguments are
+designed to come straight from a `grep -l …` command, and everything in the
+containing repo will be submitted, not just the given file alone.
 
 The `list-unclean-repo` script goes through all checked-out directories and
 lists those that have local changes that haven't yet been checked-in:

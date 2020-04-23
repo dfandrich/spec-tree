@@ -18,7 +18,7 @@ import enum
 import getopt
 import glob
 from html import escape
-from logging import info, warning, error, fatal, basicConfig, INFO
+from logging import debug, info, warning, error, fatal, basicConfig, INFO
 import os
 import re
 import shlex
@@ -49,11 +49,14 @@ SRPM_VERSION = 'cauldron'
 SRPM_MEDIAS = ['tainted', 'nonfree', 'core']
 SRPM_SECTION = 'release'
 
+
 class SpecStyle(enum.IntEnum):
+    '''The layout of the user's spec file tree.'''
     SPEC_STYLE_UNKNOWN = enum.auto()
     SPEC_STYLE_MASSIVE = enum.auto()
     SPEC_STYLE_INDIVIDUAL = enum.auto()
     SPEC_STYLE_SPEC_ONLY = enum.auto()
+
 
 SPEC_STYLE_NAME = {
     SpecStyle.SPEC_STYLE_UNKNOWN: 'unknown',
@@ -91,7 +94,7 @@ HTML_FOOTER = textwrap.dedent('''
 
 def get_packagers() -> Dict[str, str]:
     'Retrieve a dict containing packagers for each package'
-    packagers = collections.defaultdict(lambda : UNKNOWN_PACKAGER)
+    packagers = collections.defaultdict(lambda: UNKNOWN_PACKAGER)
     cmd = 'mgarepo maintdb get'
     info("Running: %s", cmd)
     pipe = os.popen(cmd, 'r')
@@ -180,6 +183,7 @@ def retrieve_dir_contents(url: str) -> List[str]:
 
     raise RuntimeError('SRPM URL type %s not supported' % url)
 
+
 def retrieve_dir_contents_curl(url: str) -> List[str]:
     'Return a directory listing of the remote URL'
     listing = []
@@ -196,7 +200,7 @@ def retrieve_dir_contents_curl(url: str) -> List[str]:
     return listing
 
 
-def retrieve_all_packages(srpm_source: str) -> Tuple[Set[str], Dict[str, str]] :
+def retrieve_all_packages(srpm_source: str) -> Tuple[Set[str], Dict[str, str]]:
     '''Retrieve a list of all packages available in the distribution.
 
     This could be changed to use the urpmi synthesis files instead.
@@ -240,8 +244,8 @@ def get_srpm_name_stub_from_spec(specfile: str, release: str) -> str:
     # %dist includes the mgaX version of the current machine by default, which
     # might not match that of release, so construct the version ourselves.
     cmd = 'rpmspec -q -D"dist ."%s --queryformat "%%{NAME}-%%{VERSION}-%%{RELEASE}\n" %s' % \
-            (shlex.quote(release), shlex.quote(specfile))
-    #info("Running: %s", cmd)
+          (shlex.quote(release), shlex.quote(specfile))
+    debug("Running: %s", cmd)
     pipe = os.popen(cmd, 'r')
     # There may be many RPMs generated, but the one is the one with the SRPM
     line = pipe.readline()
@@ -255,30 +259,36 @@ def get_srpm_name_stub_from_spec(specfile: str, release: str) -> str:
 
 
 def make_spec_path(package: str, spec_style: int) -> str:
+    '''Creates a file path from the package name and spec tree style.'''
     if spec_style == SpecStyle.SPEC_STYLE_MASSIVE:
         return os.path.join(package, 'current', 'SPECS', package + '.spec')
-    elif spec_style == SpecStyle.SPEC_STYLE_INDIVIDUAL:
+    if spec_style == SpecStyle.SPEC_STYLE_INDIVIDUAL:
         return os.path.join(package, 'SPECS', package + '.spec')
-    elif spec_style == SpecStyle.SPEC_STYLE_SPEC_ONLY:
+    if spec_style == SpecStyle.SPEC_STYLE_SPEC_ONLY:
         return os.path.join(package, package + '.spec')
     raise RuntimeError('Unsupported spec style %d' % spec_style)
 
 
 class PackageProcessor:
+    '''Class to analyze the versions of packages in .spec files.'''
 
     def __init__(self, all_rpms: Set[str], all_packages: Dict[str, str], spec_style: int,
-            release: str):
+                 release: str):
         self.all_rpms = all_rpms
         self.all_packages = all_packages
         self.spec_style = spec_style
         self.release = release
 
-        self.no_srpm_file = []  # type: List[str]
-        self.errors = []  # type: List[str]
+        self.no_srpm_file = []      # type: List[str]
+        self.errors = []            # type: List[str]
         self.version_mismatch = []  # type: List[Tuple[str, str, str]]
-        self.version_match = []  # type: List[Tuple[str, str]]
+        self.version_match = []     # type: List[Tuple[str, str]]
 
     def process_package(self, package: str):
+        '''Process the given package.
+
+        This method must be reentrant.
+        '''
         spec_path = make_spec_path(package, self.spec_style)
         if package not in self.all_packages:
             self.no_srpm_file.append(package)
@@ -308,6 +318,7 @@ class PackageProcessor:
         self.version_match.sort(key=lambda x: x[0])
 
     def print_text_report(self, packagers: Dict[str, str]):
+        '''Print a text report after all packages have been processed.'''
         print()
         print('Packages with no associated SRPM file on the server')
         for package in self.no_srpm_file:
@@ -323,13 +334,16 @@ class PackageProcessor:
         for package, have_name, should_have in self.version_mismatch:
             print(packagers[package], package, have_name, should_have)
 
-        if True:
-            print()
-            print('Version match on server')
+        print()
+        print('Version match on server')
+        if len(self.version_match) > 300:
+            print('%d spec files have matching RPMs (not shown)' % len(self.version_match))
+        else:
             for package, srpm_name in self.version_match:
                 print(packagers[package], srpm_name)
 
     def print_html_report(self, packagers: Dict[str, str]):
+        '''Print an HTML report after all packages have been processed.'''
         print(HTML_HEADER)
         print(f'<h1>{SRPM_VERSION} ({self.release}) Spec Build Report as of {time.strftime("%Y-%m-%d")}</h1>')
 
@@ -469,6 +483,16 @@ class PackageProcessor:
         print(HTML_FOOTER)
 
 
+def process_packages(proc: PackageProcessor, spec_packages: List[str]):
+    '''Process the given packages with thread parallelism.'''
+    with concurrent.futures.ThreadPoolExecutor(max_workers=PARALLEL_THREADS) as executor:
+        futures = (executor.submit(proc.process_package, package) for package in spec_packages)
+        for n, future in enumerate(concurrent.futures.as_completed(futures)):
+            if n % 100 == 0:
+                # Provide some visual feedback on progress
+                info('%d/%d (%d%%)', n, len(spec_packages), 100 * n / len(spec_packages))
+            future.result()  # call this so reveal any exceptions
+
 
 def main(argv: List[str]) -> int:
     try:
@@ -507,7 +531,7 @@ def main(argv: List[str]) -> int:
     info('Checking media section: %s', SRPM_SECTION)
 
     spec_packages = get_local_package_list(local_packages)
-    if len(spec_packages) == 0:
+    if not spec_packages:
         fatal('No package directories found in %s', local_packages)
         return 1
 
@@ -522,7 +546,7 @@ def main(argv: List[str]) -> int:
     all_rpms, all_packages = retrieve_all_packages(srpm_source)
 
     info('%d total SRPM packages found on server' % len(all_packages))
-    if len(all_packages) == 0:
+    if not all_packages:
         fatal('No packages found. Try a different mirror.')
         return 2
 
@@ -536,13 +560,7 @@ def main(argv: List[str]) -> int:
     info('Starting check of spec files')
     spec_packages.sort()
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=PARALLEL_THREADS) as executor:
-        futures = (executor.submit(proc.process_package, package) for package in spec_packages)
-        for n, future in enumerate(concurrent.futures.as_completed(futures)):
-            if n % 100 == 0:
-                # Provide some visual feedback on progress
-                info('%d/%d (%d%%)', n, len(spec_packages), 100 * n / len(spec_packages))
-            future.result()  # call this so reveal any exceptions
+    process_packages(proc, spec_packages)
 
     proc.sort()
     if text_report:
@@ -555,5 +573,5 @@ def main(argv: List[str]) -> int:
     return 0
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     sys.exit(main(sys.argv))

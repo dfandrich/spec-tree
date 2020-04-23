@@ -19,7 +19,8 @@ import enum
 import getopt
 import glob
 from html import escape
-from logging import debug, info, warning, error, fatal, basicConfig, INFO
+import logging
+from logging import debug, info, warning, error, fatal
 import os
 import re
 import shlex
@@ -545,10 +546,10 @@ def process_packages(proc: PackageProcessor, spec_packages: List[str]):
 
 
 def main(argv: List[str]) -> int:
-    basicConfig(level=INFO, format='%(levelname)s:%(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
 
     try:
-        optlist, args = getopt.getopt(argv[1:], 'hl:r:s:t')
+        optlist, args = getopt.getopt(argv[1:], 'hl:r:s:tv')
     except getopt.GetoptError as err:
         fatal('Invalid command-line option: %s', err)
         return 1
@@ -571,6 +572,8 @@ def main(argv: List[str]) -> int:
             srpm_source = v
         elif o == '-t':
             text_report = True
+        elif o == '-v':
+            logging.getLogger().setLevel(logging.DEBUG)
         elif o == '-h':
             fatal('Usage: %s [-r release] | [-l local_package_glob] | [-s srpm_source_url]', argv[0])
             return 1

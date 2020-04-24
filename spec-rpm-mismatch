@@ -12,11 +12,11 @@ TODO:
     fix warnings from .spec files with weird macros calling external programs
 '''
 
+import argparse
 import collections
 import concurrent.futures
 from dataclasses import dataclass
 import enum
-import getopt
 import glob
 from html import escape
 import logging
@@ -545,49 +545,52 @@ def process_packages(proc: PackageProcessor, spec_packages: List[str]):
             future.result()  # call this so reveal any exceptions
 
 
+class MgaReleaseTagAction(argparse.Action):
+    '''Append the option value to "mga" if numeric, otherwise verbatim.'''
+    def __call__(self, parser, namespace, values, option_string=None):
+        if values.isdigit():
+            setattr(namespace, self.dest, 'mga' + values)
+        else:
+            setattr(namespace, self.dest, values)
+
+
 def main(argv: List[str]) -> int:
     logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
 
-    try:
-        optlist, args = getopt.getopt(argv[1:], 'hl:r:s:tv')
-    except getopt.GetoptError as err:
-        fatal('Invalid command-line option: %s', err)
-        return 1
+    parser = argparse.ArgumentParser(
+        description='Show packages whose spec files specify an RPM version '
+                    'that does not exist.')
+    parser.add_argument(
+        '-l', '--local_packages', default=LOCAL_PACKAGE_GLOB,
+        help='Glob pointing to local .srpm packages')
+    parser.add_argument(
+        '-r', '--release', type=str, default='mga' + SRPM_DISTRO_RELEASE,
+        action=MgaReleaseTagAction,
+        help='Distro release tag in the files in local_packages')
+    parser.add_argument(
+        '-s', '--srpm_source', type=str, default=SRPM_SOURCE_TEMPLATE,
+        help='URL of remote package source with {version} {media} and {section} replaced.')
+    parser.add_argument(
+        '-t', '--text_report', action='store_true',
+        help='Whether to show a plain text report instead of HTML.')
+    parser.add_argument(
+        '-v', '--verbose', action='store_true',
+        help='Whether to show verbose debug logs.')
+    args = parser.parse_args(args=argv[1:])
 
-    if args:
-        fatal('Unsupported command-line argument(s): %s', ' '.join(args))
-        return 1
+    if args.verbose:
+        logging.getLogger().setLevel(logging.DEBUG)
 
-    release = 'mga' + SRPM_DISTRO_RELEASE
-    local_packages = LOCAL_PACKAGE_GLOB
-    srpm_source = SRPM_SOURCE_TEMPLATE
-    text_report = False
-
-    for o, v in optlist:
-        if o == '-l':
-            local_packages = v
-        elif o == '-r':
-            release = 'mga' + v
-        elif o == '-s':
-            srpm_source = v
-        elif o == '-t':
-            text_report = True
-        elif o == '-v':
-            logging.getLogger().setLevel(logging.DEBUG)
-        elif o == '-h':
-            fatal('Usage: %s [-r release] | [-l local_package_glob] | [-s srpm_source_url]', argv[0])
-            return 1
-
-    info('Expected distro release: %s', release)
-    info('Local package specs found in: %s', local_packages)
-    info('SRPMS found in : %s', srpm_source)
+    info('Expected distro release: %s', args.release)
+    info('Local package specs found in: %s', args.local_packages)
+    info('SRPMS found in : %s', args.srpm_source)
     info('Checking version: %s', SRPM_VERSION)
     info('Checking medias: %s', ', '.join(SRPM_MEDIAS))
     info('Checking media section: %s', SRPM_SECTION)
 
-    spec_packages = get_local_package_list(local_packages)
+    spec_packages = get_local_package_list(args.local_packages)
     if not spec_packages:
-        fatal('No package directories found in %s', local_packages)
+        fatal('No package directories found in %s', args.local_packages)
         return 1
 
     canary_package = spec_packages[-1]
@@ -598,7 +601,7 @@ def main(argv: List[str]) -> int:
 
     info('%d package directories found' % len(spec_packages))
 
-    all_rpms, all_packages = retrieve_all_packages(srpm_source)
+    all_rpms, all_packages = retrieve_all_packages(args.srpm_source)
 
     info('%d total SRPM packages found on server' % len(all_packages))
     if not all_packages:
@@ -610,14 +613,14 @@ def main(argv: List[str]) -> int:
         warning('Packager list could not be retrieved. Packagers will not be shown.')
     info('%d packages+packagers known' % len(packagers))
 
-    proc = PackageProcessor(all_rpms, all_packages, spec_style, release)
+    proc = PackageProcessor(all_rpms, all_packages, spec_style, args.release)
 
     info('Starting check of spec files')
     spec_packages.sort()
 
     process_packages(proc, spec_packages)
 
-    if text_report:
+    if args.text_report:
         proc.print_text_report(packagers)
     else:
         proc.print_html_report(packagers)

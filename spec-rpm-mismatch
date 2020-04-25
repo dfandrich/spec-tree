@@ -142,28 +142,31 @@ def rpm_versions(rpm_base: str) -> Tuple[str, str, str, str]:
     return ('', '', '', '')
 
 
-def get_local_package_list(package_glob: str) -> List[str]:
-    'Get a list of local packages with spec files to check'
+def get_local_package_paths(package_glob: str) -> List[str]:
+    'Get a list of local package paths with spec files to check'
     spec_packages = glob.glob(package_glob)
-    return [os.path.basename(f) for f in spec_packages if stat.S_ISDIR(os.stat(f).st_mode)]
+    return [f for f in spec_packages if stat.S_ISDIR(os.stat(f).st_mode)]
 
 
-def determine_spec_tree_style(package: str) -> int:
+def determine_spec_tree_style(package_glob: str) -> int:
     'Figure out why kind of style of SVN checkout is in use'
+    package_file = glob.glob(package_glob)[-1]
+    debug('Checking spec style based on %s', package_file)
     try:
-        if stat.S_ISDIR(os.stat(os.path.join(package, 'current', 'SPECS')).st_mode):
+        if stat.S_ISDIR(os.stat(os.path.join(package_file, 'current', 'SPECS')).st_mode):
             return SpecStyle.SPEC_STYLE_MASSIVE
     except OSError:
         pass
 
     try:
-        if stat.S_ISDIR(os.stat(os.path.join(package, 'SPECS')).st_mode):
+        if stat.S_ISDIR(os.stat(os.path.join(package_file, 'SPECS')).st_mode):
             return SpecStyle.SPEC_STYLE_INDIVIDUAL
     except OSError:
         pass
 
+    package = os.path.basename(package_file)
     try:
-        if stat.S_ISREG(os.stat(os.path.join(package, package + '.spec')).st_mode):
+        if stat.S_ISREG(os.stat(os.path.join(package_file, package + '.spec')).st_mode):
             return SpecStyle.SPEC_STYLE_SPEC_ONLY
     except OSError:
         pass
@@ -236,7 +239,7 @@ def retrieve_all_packages(srpm_source: str) -> Tuple[Set[str], Dict[str, str]]:
     return all_rpms, all_packages
 
 
-def get_srpm_name_stub_from_spec(specfile: str, release: str) -> str:
+def get_srpm_name_stub_from_spec(spec_file: str, release: str) -> str:
     '''Determine the start of the SRPM name created by the given spec file.
 
     This returns a name like 'foo-1.23-4'
@@ -244,7 +247,7 @@ def get_srpm_name_stub_from_spec(specfile: str, release: str) -> str:
     # %dist includes the mgaX version of the current machine by default, which
     # might not match that of release, so construct the version ourselves.
     cmd = 'rpmspec -q -D"dist ."%s --queryformat "%%{NAME}-%%{VERSION}-%%{RELEASE}\n" %s' % \
-          (shlex.quote(release), shlex.quote(specfile))
+          (shlex.quote(release), shlex.quote(spec_file))
     debug("Running: %s", cmd)
     pipe = os.popen(cmd, 'r')
     # There may be many RPMs generated, but the one is the one with the SRPM
@@ -253,19 +256,20 @@ def get_srpm_name_stub_from_spec(specfile: str, release: str) -> str:
         return ''
     _ = pipe.read()  # ignore the rest
     if pipe.close():
-        error('Cannot parse spec file %s', specfile)
+        error('Cannot parse spec file %s', spec_file)
         return ''
     return line.strip()
 
 
-def make_spec_path(package: str, spec_style: int) -> str:
+def make_spec_path(package_file: str, spec_style: int) -> str:
     '''Creates a file path from the package name and spec tree style.'''
+    package = os.path.basename(package_file)
     if spec_style == SpecStyle.SPEC_STYLE_MASSIVE:
-        return os.path.join(package, 'current', 'SPECS', package + '.spec')
+        return os.path.join(package_file, 'current', 'SPECS', package + '.spec')
     if spec_style == SpecStyle.SPEC_STYLE_INDIVIDUAL:
-        return os.path.join(package, 'SPECS', package + '.spec')
+        return os.path.join(package_file, 'SPECS', package + '.spec')
     if spec_style == SpecStyle.SPEC_STYLE_SPEC_ONLY:
-        return os.path.join(package, package + '.spec')
+        return os.path.join(package_file, package + '.spec')
     raise RuntimeError('Unsupported spec style %d' % spec_style)
 
 
@@ -338,12 +342,13 @@ class PackageProcessor:
         self.release = release
         self.result = ResultCollection()
 
-    def process_package(self, package: str):
+    def process_package(self, package_file: str):
         '''Process the given package.
 
         This method must be reentrant.
         '''
-        spec_path = make_spec_path(package, self.spec_style)
+        spec_path = make_spec_path(package_file, self.spec_style)
+        package = os.path.basename(package_file)
         if package not in self.all_packages:
             self.result.add(NoSrpmFile(package))
             return
@@ -588,15 +593,15 @@ def main(argv: List[str]) -> int:
     info('Checking medias: %s', ', '.join(SRPM_MEDIAS))
     info('Checking media section: %s', SRPM_SECTION)
 
-    spec_packages = get_local_package_list(args.local_packages)
+    spec_packages = get_local_package_paths(args.local_packages)
     if not spec_packages:
         fatal('No package directories found in %s', args.local_packages)
         return 1
 
-    canary_package = spec_packages[-1]
-    spec_style = determine_spec_tree_style(canary_package)
+    spec_style = determine_spec_tree_style(args.local_packages)
     info('Spec file checkout style in use is %s' % SPEC_STYLE_NAME[spec_style])
     if spec_style == SpecStyle.SPEC_STYLE_UNKNOWN:
+        fatal('Unknown checkout style')
         return 1
 
     info('%d package directories found' % len(spec_packages))

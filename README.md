@@ -8,18 +8,25 @@ possible spec files in order to perform large-scale refactoring or changes, to
 search all the spec files, or to perform analysis on them.
 
 The spec files are all found within directories under a top directory, one per
-package. For example:
+package (the "spec only" style). For example:
 
     TOP/apackage/apackage.spec
     TOP/coolprogram/coolprogram.spec
     TOP/greatcode/greatcode.spec
 
 This is what you would get when using `mgarepo co -s X` for each packages. Some
-scripts also support the standard format which looks like:
+scripts also support the standard format (a.k.a. "individual packages") which
+looks like:
 
     TOP/apackage/SPECS/apackage.spec
     TOP/coolprogram/SPECS/coolprogram.spec
     TOP/greatcode/SPECS/greatcode.spec
+
+as well as the "massive checkout" style, which looks like:
+
+    TOP/apackage/current/SPECS/apackage.spec
+    TOP/coolprogram/current/SPECS/coolprogram.spec
+    TOP/greatcode/current/SPECS/greatcode.spec
 
 ## Usage
 

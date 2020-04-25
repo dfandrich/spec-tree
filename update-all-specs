@@ -5,6 +5,7 @@
 # and --max-delete N sets the maximum deletions allowed
 set -e
 
+readonly SPEC_TREE="${SPEC_TREE:-.}"
 readonly BASE_SVN='svn://svn.mageia.org/svn/packages/cauldron/'
 # The svn server has a limited number of connections, and they run out
 # and updates fail when run with 12 in parallel. 8 provides a margin for error.
@@ -24,7 +25,7 @@ fi
 
 # Update all svn repos in directories in the current path
 update_specs () {
-  find . -maxdepth 1 -type d -print0 | xargs -0 -n1 -i{} -P"$PARALLEL_SVN"  sh -c 'cd "{}" && svn up' || \
+  find "${SPEC_TREE}" -maxdepth 1 -type d -print0 | xargs -0 -n1 -i{} -P"$PARALLEL_SVN"  sh -c 'cd "{}" && svn up' || \
       {
           local RC="$?"
           if [[ "$RC" -eq 123 || "$RC" -eq 1 ]] ; then
@@ -48,7 +49,7 @@ delete_obsolete_specs () {
 
     svn ls "$BASE_SVN" | sed 's@/$@@' | sort >"${SPECSLIST}"
     echo $(wc -l "${SPECSLIST}" | awk '{print $1}') packages in SVN
-    ls  | sort >"${HAVELIST}"
+    ls "${SPEC_TREE}" | sort >"${HAVELIST}"
     echo $(wc -l "${HAVELIST}" | awk '{print $1}') packages locally
 
     comm -2 -3 "${HAVELIST}" "${SPECSLIST}" > "${DELETELIST}"
@@ -75,6 +76,7 @@ checkout_new_specs () {
 
     svn ls "$BASE_SVN" >"${SPECSLIST}"
     echo $(wc -l "${SPECSLIST}" | awk '{print $1}') packages to check/download
+    cd "${SPEC_TREE}"
     xargs -n1 -i{} -P4 sh -c "test -d {} || svn co '$BASE_SVN'{}current/SPECS {}" <"${SPECSLIST}"
 }
 

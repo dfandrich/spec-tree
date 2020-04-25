@@ -29,6 +29,10 @@ Populate a new, empty TOP directory like this:
     cd TOP
     checkout-all-specs
 
+To make some of the other scripts easier to use, set the `SPEC_TREE`
+environment variable to this path. If you don't do this, you'll need to change
+to this directory for most of the scripts to work.
+
 To update the spec files later, run this:
 
     cd TOP

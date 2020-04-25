@@ -1,6 +1,7 @@
 #!/bin/bash
 # Find spec files matching a regex and create a list of them with their maintainers
 set -e
+readonly SPEC_TREE="${SPEC_TREE:-.}"
 readonly TMPFILE="$(mktemp)"
 readonly TMP2FILE="$(mktemp)"
 readonly TMP3FILE="$(mktemp)"
@@ -9,7 +10,7 @@ trap 'rm -f "${TMPFILE}" "${TMP2FILE}" "${TMP3FILE}" "${MAINTFILE}"' 0
 
 # For consistent sorting
 export LC_ALL=C
-find . -name '*.spec' -print0 | \
+find "${SPEC_TREE}" -name '*.spec' -print0 | \
   xargs -0 -n32 grep -lP "$@" | \
   sed -e 's@^.*/@@' -e 's/\.spec$//' | \
   sort -u > "${TMPFILE}"

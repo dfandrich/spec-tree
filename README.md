@@ -57,6 +57,10 @@ lists those that have local changes that haven't yet been checked-in:
     cd TOP
     list-unclean-repo
 
+The `findspec` script search through all the .spec files in the tree using
+a perl-style regex. Command-line arguments are passed through to grep so `-l`
+can be used to list matching files, for example.
+
 `match-spec-maintainer` lists all packages whose spec files match a perl-style
 regular expression and lists them along with their maintainer's user ID:
 

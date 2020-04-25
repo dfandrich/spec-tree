@@ -1,0 +1,4 @@
+#!/bin/bash
+# Greps through .spec files
+readonly SPEC_TREE="${SPEC_TREE:-.}"
+find "${SPEC_TREE}" -name '*.spec' -print0 | xargs -0 -n32 grep -P "$@"

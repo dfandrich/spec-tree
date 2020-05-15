@@ -65,6 +65,7 @@ delete_obsolete_specs () {
     fi
     echo Deleting...
     cat "${DELETELIST}"
+    cd "${SPEC_TREE}"
     xargs -i{} rm -r {} < "${DELETELIST}"
 }
 

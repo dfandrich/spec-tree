@@ -39,8 +39,8 @@ PARALLEL_THREADS = int(1.5 * len(os.sched_getaffinity(0)))
 #SRPM_SOURCE_TEMPLATE = 'ftp://ftp.uni-erlangen.de/mirrors/Mageia/distrib/{version}/SRPMS/{media}/{section}/'
 #SRPM_SOURCE_TEMPLATE = 'ftp://mirror.tuxinator.org/mageia/distrib/{version}/SRPMS/{media}/{section}/'
 #SRPM_SOURCE_TEMPLATE = 'ftp://mirror.netcologne.de/mageia/distrib/{version}/SRPMS/{media}/{section}/'
-
-SRPM_SOURCE_TEMPLATE = 'ftp://ftp5.gwdg.de/pub/linux/mageia/distrib/{version}/SRPMS/{media}/{section}/'
+#SRPM_SOURCE_TEMPLATE = 'ftp://ftp5.gwdg.de/pub/linux/mageia/distrib/{version}/SRPMS/{media}/{section}/'
+SRPM_SOURCE_TEMPLATE = 'ftp://distro.ibiblio.org/pub/linux/distributions/mageia/distrib/{version}/SRPMS/{media}/{section}/'
 LOCAL_PACKAGE_GLOB = '*'
 SRPM_DISTRO_RELEASE = '8'  # Default distro release number, i.e. the X in mgaX
 

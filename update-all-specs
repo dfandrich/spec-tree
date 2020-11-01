@@ -57,6 +57,7 @@ delete_obsolete_specs () {
     echo "$NUMDELETE" packages to delete
     if [[ "$NUMDELETE" -ge "$MAX_DELETE_FAILSAFE" ]]; then
         echo "That's a lot of packages! Something may have gone wrong. Aborting to be safe."
+        echo "Use --max-delete N to configure this check."
         exit 1
     fi
     if [[ "$NUMDELETE" -eq 0 ]]; then

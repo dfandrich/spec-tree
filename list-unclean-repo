@@ -1,4 +1,4 @@
 #!/bin/bash
 # List packages that have modified files
 readonly SPEC_TREE="${SPEC_TREE:-.}"
-find "${SPEC_TREE}" -maxdepth 1 -type d -print0 | xargs -0 -n1 -i{} -P80  bash -c 'cd "{}" && if [[ -n "$(svn status -q)" ]] ; then basename "{}"; fi'
+find "${SPEC_TREE}" -maxdepth 1 -type d -print0 | xargs -0 -i{} -P80 bash -c 'cd "{}" && if [[ -n "$(svn status -q)" ]] ; then basename "{}"; fi'

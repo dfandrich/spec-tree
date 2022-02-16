@@ -25,7 +25,7 @@ fi
 
 # Update all svn repos in directories in the current path
 update_specs () {
-  find "${SPEC_TREE}" -maxdepth 1 -type d -print0 | xargs -0 -n1 -i{} -P"$PARALLEL_SVN"  sh -c 'cd "{}" && svn up' || \
+  find "${SPEC_TREE}" -maxdepth 1 -type d -print0 | xargs -0 -i{} -P"$PARALLEL_SVN"  sh -c 'cd "{}" && svn up' || \
       {
           local RC="$?"
           if [[ "$RC" -eq 123 || "$RC" -eq 1 ]] ; then
@@ -79,7 +79,7 @@ checkout_new_specs () {
     svn ls "$BASE_SVN" >"${SPECSLIST}"
     echo $(wc -l "${SPECSLIST}" | awk '{print $1}') packages to check/download
     cd "${SPEC_TREE}"
-    xargs -n1 -i{} -P4 sh -c "test -d {} || svn co '$BASE_SVN'{}current/SPECS {}" <"${SPECSLIST}"
+    xargs -i{} -P4 sh -c "test -d {} || svn co '$BASE_SVN'{}current/SPECS {}" <"${SPECSLIST}"
 }
 
 test -z "$UPDATE_ONLY" && { echo Deleting obsolete directories; delete_obsolete_specs; }

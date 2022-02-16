@@ -102,8 +102,12 @@ def get_packagers() -> Dict[str, str]:
         line = pipe.readline()
         if not line:
             break
-        package, packager = tuple(line.strip().split())
-        packagers[package] = packager
+        try:
+            package, packager = tuple(line.strip().split())
+        except ValueError:
+            error('Problem getting packager on %s' % line.strip())
+        else:
+            packagers[package] = packager
     if pipe.close():
         error('Problem retrieving the maintdb')
     return packagers

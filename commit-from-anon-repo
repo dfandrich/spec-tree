@@ -1,6 +1,7 @@
 #!/bin/bash
 # Commit a change from an svn checkout that was checked out anonymously.
 # This is done by temporarily changing the URL to svn+ssh: from svn:
+readonly SPEC_TREE="${SPEC_TREE:-.}"
 if [[ "$1" != '-m' ]] ; then
     echo Usage: "$0" -m comment file_in_repo '[file2_in_repo...]'
     exit
@@ -10,7 +11,10 @@ COMMENT="$1"
 shift
 
 for f in "$@"; do
-    D="$(dirname "$f")"
+    case "$f" in
+        /*) D="$(dirname "$f")";;               # absolute path
+        *) D="$(readlink -f "$SPEC_TREE/$f")";; # bare repo name
+    esac
     echo "$D"
     cd "$D" || { echo Error: could not cd "$D"; continue; }
     OLDU="$(svn info --show-item url)"

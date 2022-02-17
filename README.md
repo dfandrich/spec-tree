@@ -80,6 +80,11 @@ everything in the containing repo will be submitted, not just the given file
 alone. If the repo already had an SSH URL, it will be switched to an anonymous
 svn one after submission.
 
+Instead of absolute paths to files in the repo, the arguments can be bare repo
+names, like this:
+
+    commit-from-anon-repo -m 'The commit message' apackage greatcode
+
 This script does not support a "massive checkout" style tree.
 
 ### list-unclean-repo

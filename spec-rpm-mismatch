@@ -70,7 +70,7 @@ UNKNOWN_PACKAGER = '?'
 
 SVNWEB_URL_TEMPLATE = 'https://svnweb.mageia.org/packages/{version}/{package}/current/SPECS/{package}.spec'
 
-HTML_HEADER = textwrap.dedent('''
+HTML_HEADER = textwrap.dedent('''\
     <!DOCTYPE html>
     <html><head>
     <meta name="GENERATOR" content="spec-rpm-mismatch">

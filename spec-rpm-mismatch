@@ -15,12 +15,9 @@ TODO:
 import argparse
 import collections
 import concurrent.futures
-from dataclasses import dataclass
 import enum
 import glob
-from html import escape
 import logging
-from logging import debug, info, warning, error, fatal
 import os
 import re
 import shlex
@@ -28,21 +25,24 @@ import stat
 import sys
 import textwrap
 import time
-from typing import Dict, List, Set, Tuple, Type, TypeVar
 import urllib.parse
+from dataclasses import dataclass
+from html import escape
+from logging import debug, error, fatal, info, warning
+from typing import Dict, List, Set, Tuple, Type, TypeVar
 
 
 # Parallelize spec parsing with a bit more than the number of available cores
 PARALLEL_THREADS = int(1.5 * len(os.sched_getaffinity(0)))
 
-#SRPM_SOURCE_TEMPLATE = 'ftp://distrib-coffee.ipsl.jussieu.fr/pub/linux/Mageia/distrib/{version}/SRPMS/{media}/{section}/'
-#SRPM_SOURCE_TEMPLATE = 'ftp://ftp.uni-erlangen.de/mirrors/Mageia/distrib/{version}/SRPMS/{media}/{section}/'
-#SRPM_SOURCE_TEMPLATE = 'ftp://mirror.tuxinator.org/mageia/distrib/{version}/SRPMS/{media}/{section}/'
-#SRPM_SOURCE_TEMPLATE = 'ftp://mirror.netcologne.de/mageia/distrib/{version}/SRPMS/{media}/{section}/'
-#SRPM_SOURCE_TEMPLATE = 'ftp://ftp5.gwdg.de/pub/linux/mageia/distrib/{version}/SRPMS/{media}/{section}/'
-#SRPM_SOURCE_TEMPLATE = 'ftp://distro.ibiblio.org/pub/linux/distributions/mageia/distrib/{version}/SRPMS/{media}/{section}/'
+# SRPM_SOURCE_TEMPLATE = 'ftp://distrib-coffee.ipsl.jussieu.fr/pub/linux/Mageia/distrib/{version}/SRPMS/{media}/{section}/'
+# SRPM_SOURCE_TEMPLATE = 'ftp://ftp.uni-erlangen.de/mirrors/Mageia/distrib/{version}/SRPMS/{media}/{section}/'
+# SRPM_SOURCE_TEMPLATE = 'ftp://mirror.tuxinator.org/mageia/distrib/{version}/SRPMS/{media}/{section}/'
+# SRPM_SOURCE_TEMPLATE = 'ftp://mirror.netcologne.de/mageia/distrib/{version}/SRPMS/{media}/{section}/'
+# SRPM_SOURCE_TEMPLATE = 'ftp://ftp5.gwdg.de/pub/linux/mageia/distrib/{version}/SRPMS/{media}/{section}/'
+# SRPM_SOURCE_TEMPLATE = 'ftp://distro.ibiblio.org/pub/linux/distributions/mageia/distrib/{version}/SRPMS/{media}/{section}/'
 SRPM_SOURCE_TEMPLATE = 'ftp://distrib-coffee.ipsl.jussieu.fr/pub/linux/Mageia/distrib/{version}/SRPMS/{media}/{section}/'
-LOCAL_PACKAGE_GLOB = '*'
+LOCAL_PACKAGE_GLOB = '*'   # Default glob pattern to match local .srpm files
 SRPM_DISTRO_RELEASE = '9'  # Default distro release number, i.e. the X in mgaX
 
 # Substituted into the SRPM_SOURCE_TEMPLATE and used in report titles

@@ -1,4 +1,4 @@
-# spec-tree
+# Spec Tree
 
 ## Overview
 
@@ -163,3 +163,15 @@ might look like this.
    error by ensuring there is no output when running:
 
     `list-unclean-repo`
+
+## Author
+
+Daniel Fandrich <dan@coneharvesters.com>
+
+See more info at the
+[project home page](https://github.com/dfandrich/spec-tree/).
+
+This program is Copyright © 2014–2022 Daniel Fandrich. It is distributed under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version. See [COPYING](COPYING) for details.

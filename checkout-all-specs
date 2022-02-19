@@ -1,8 +1,15 @@
 #!/bin/bash
 # Checkout all spec files into subdirectories under the current directory.
+#
+# Copyright © 2014–2022 Daniel Fandrich.
+# This program is free software; you can redistribute it and/or modify
+# Licensed under GNU General Public License 2.0 or later.
+# Some rights reserved. See COPYING.
+#
 # This is needed to bootstrap a spec directory. To update them later, run
 # update-all-specs and checkout-new-specs, which should be slightly more
 # efficient.
+
 set -e
 #export BASE_SVN='svn+ssh://svn.mageia.org/svn/packages/cauldron/'
 export BASE_SVN='svn://svn.mageia.org/svn/packages/cauldron/'

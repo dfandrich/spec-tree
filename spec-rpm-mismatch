@@ -17,6 +17,7 @@ import collections
 import concurrent.futures
 import enum
 import glob
+import html.parser
 import logging
 import os
 import re
@@ -27,7 +28,7 @@ import textwrap
 import time
 import urllib.parse
 from dataclasses import dataclass
-from html import escape
+from html import escape, unescape
 from logging import debug, error, fatal, info, warning
 from typing import Dict, List, Set, Tuple, Type, TypeVar
 
@@ -36,12 +37,7 @@ from typing import Dict, List, Set, Tuple, Type, TypeVar
 PARALLEL_THREADS = int(1.5 * len(os.sched_getaffinity(0)))
 
 # SRPM_SOURCE_TEMPLATE = 'ftp://distrib-coffee.ipsl.jussieu.fr/pub/linux/Mageia/distrib/{version}/SRPMS/{media}/{section}/'
-# SRPM_SOURCE_TEMPLATE = 'ftp://ftp.uni-erlangen.de/mirrors/Mageia/distrib/{version}/SRPMS/{media}/{section}/'
-# SRPM_SOURCE_TEMPLATE = 'ftp://mirror.tuxinator.org/mageia/distrib/{version}/SRPMS/{media}/{section}/'
-# SRPM_SOURCE_TEMPLATE = 'ftp://mirror.netcologne.de/mageia/distrib/{version}/SRPMS/{media}/{section}/'
-# SRPM_SOURCE_TEMPLATE = 'ftp://ftp5.gwdg.de/pub/linux/mageia/distrib/{version}/SRPMS/{media}/{section}/'
-# SRPM_SOURCE_TEMPLATE = 'ftp://distro.ibiblio.org/pub/linux/distributions/mageia/distrib/{version}/SRPMS/{media}/{section}/'
-SRPM_SOURCE_TEMPLATE = 'ftp://distrib-coffee.ipsl.jussieu.fr/pub/linux/Mageia/distrib/{version}/SRPMS/{media}/{section}/'
+SRPM_SOURCE_TEMPLATE = 'https://distrib-coffee.ipsl.jussieu.fr/pub/linux/Mageia/distrib/{version}/SRPMS/{media}/{section}/'
 LOCAL_PACKAGE_GLOB = '*'   # Default glob pattern to match local .srpm files
 SRPM_DISTRO_RELEASE = '9'  # Default distro release number, i.e. the X in mgaX
 
@@ -181,10 +177,12 @@ def determine_spec_tree_style(package_glob: str) -> int:
 
 def retrieve_dir_contents(url: str) -> List[str]:
     'Return a directory listing of the remote URL'
-    # Only some schemes are supported due to the need for curl's -l flag
     u = urllib.parse.urlparse(url)
     if u.scheme in ('ftp', 'ftps'):
         return retrieve_dir_contents_curl(url)
+
+    if u.scheme in ('http', 'https'):
+        return retrieve_dir_contents_http(url)
 
     if u.scheme == 'file' and u.netloc in ('localhost', ''):
         return os.listdir(u.path)
@@ -193,9 +191,12 @@ def retrieve_dir_contents(url: str) -> List[str]:
 
 
 def retrieve_dir_contents_curl(url: str) -> List[str]:
-    'Return a directory listing of the remote URL'
+    '''Return a directory listing of the remote ftp URL
+
+    ftp allows a trivially-parsed directory listing.
+    '''
     listing = []
-    cmd = 'curl -s -l --ftp-method SINGLECWD --ssl ' + shlex.quote(url)
+    cmd = 'curl -f -s -l --ftp-method SINGLECWD --ssl ' + shlex.quote(url)
     info("Running: %s", cmd)
     pipe = os.popen(cmd, 'r')
     while True:
@@ -206,6 +207,71 @@ def retrieve_dir_contents_curl(url: str) -> List[str]:
     if pipe.close():
         error('Cannot retrieve files at %s', url)
     return listing
+
+
+class HTMLDirParser(html.parser.HTMLParser):
+    '''Parse the HTML resulting from an HTTP directory request.
+
+    This works with the output from Apache, IIS, lighttpd and nginx. The first
+    link in the links attribute is the parent directory.
+    Some servers support returning directories in structured formats (e.g., XML
+    or JSON) but it seems to be controlled server-side and the client doesn't
+    appear to be able to influence it.
+    '''
+
+    class TableState(enum.IntEnum):
+        '''States for the HTML parser.'''
+        NONE = enum.auto()
+        TR = enum.auto()
+        TH = enum.auto()
+
+    def __init__(self):
+        super().__init__()
+        self.table_state = self.TableState.NONE
+        self.links = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'th':
+            self.table_state = self.TableState.TH
+
+        elif tag == 'tr':
+            self.table_state = self.TableState.TR
+
+        elif tag == 'a':
+            if self.table_state == self.TableState.TH:
+                # Ignore links in the table header
+                return
+            attrdict = dict(attrs)
+            href = urllib.parse.unquote(unescape(attrdict['href']))
+            # Remove Apache & IIS' special column sorting links
+            if not href.startswith('?'):
+                self.links.append(href)
+        # ignore all other tags
+
+
+def retrieve_dir_contents_http(url: str) -> List[str]:
+    'Return an HTML directory listing via HTTP/S'
+    htmlp = HTMLDirParser()
+
+    cmd = 'curl -f -s --compressed ' + shlex.quote(url)
+    info("Running: %s", cmd)
+    pipe = os.popen(cmd, 'r')
+    while True:
+        data = pipe.read(1024)
+        if not data:
+            break
+        htmlp.feed(data)
+    if pipe.close():
+        error('Cannot retrieve files at %s', url)
+    htmlp.close()
+
+    # The first link points to the parent directory which we don't need
+    links = htmlp.links[1:]
+
+    # Filter out all other directories
+    links = [link for link in links if not link.endswith('/') and not link.startswith('?')]
+
+    return links
 
 
 def retrieve_all_packages(srpm_source: str) -> Tuple[Set[str], Dict[str, str]]:
@@ -579,7 +645,7 @@ def main(argv: List[str]) -> int:
         help='Distro release tag in the files in local_packages')
     parser.add_argument(
         '-s', '--srpm_source', type=str, default=SRPM_SOURCE_TEMPLATE,
-        help='URL of remote package source with {version} {media} and {section} replaced.')
+        help='URL of package source with {version} {media} and {section} replaced.')
     parser.add_argument(
         '-t', '--text_report', action='store_true',
         help='Whether to show a plain text report instead of HTML.')

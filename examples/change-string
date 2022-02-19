@@ -1,0 +1,63 @@
+#!/bin/bash
+# Change all matching strings in a file
+#
+# Copyright © 2022 Daniel Fandrich.
+# This program is free software; you can redistribute it and/or modify
+# Licensed under GNU General Public License 2.0 or later.
+# Some rights reserved. See COPYING.
+#
+# To update all the strings in all spec files, run this script like this:
+#    findspec -l "^%make" | xargs change-string
+#
+# The script uses sed to replace strings. Its one line is deceptively simple,
+# but the devil is in the details. The regular expressions used are critical.
+# When designing them, keep the following points in mind to avoid a catastrophe
+# that accidentally breaks thousands of projects:
+#
+# 1) The two regexes in the findspec and change-string commands don't have to
+# be identical. The findspec one could be more general and match more cases
+# than you're interested in, as long as the sed match is exact.
+#
+# 2) Consider if strings should be replaced no matter in which section they
+# appear in the spec file. If only strings in the %build section should be
+# touched, the sample command below should be more like:
+#   /^%build\>/,/^%(description|package|prep|build|install|check|files|clean|changelog|pre|preun|pretrans|post|postun|posttrans|transfiletriggerin|transfiletriggerpostun)\>/s@^%make\>@%make_build@
+#
+# 3) Consider whether strings in comments should be ignored. sed actually
+# allows a second regex to more generally match lines, making a total of three
+# regexes in this example workflow that all have to work in harmony. Changing
+# the example sed regex to:
+#    /^#/!s@%make@%make_build@'
+# would cause it to ignore comment lines.
+#
+# 4) Consider whether the position in the line affects whether or not it
+# should be replaced. If only lines beginning or ending with the string should
+# be changed, anchor it with ^ or $.
+#
+# 5) Consider if the string might appear more than once in a line and if
+# only the first or all instances should be replaced. By default, only the
+# first is replaced; Use the 'g' suffix to sed's s command to replace them all:
+#   s@\<tyop\>@typo@g
+#
+# 6) Consider if the string should be matched case sensitively or not. GNU
+# sed's 'i' suffix will match case insensitively.
+#
+# 7) Consider if optional whitespace could affect the match. For example,
+# a substitution like this should be case insensitive:
+#   s@^Url:[[:space:]]*http:@Url: https:@i
+#
+# 8) Try to keep the same whitespace as the original file. Don't replace
+# tabs with spaces or vice-versa if you don't have to. The previous example
+# suffers from that problem and will change any existing tabs to spaces. The
+# following substitution fixes that:
+#   s@^(Url:[[:space:]]*)http:@\1https:@i
+#
+# 9) Consider the situation of partial string matches. The example below would
+# would replace "%make" with "%make_build" but would also replace "%make_build"
+# with "%make_build_build". This is also dangerous (and likely) when replacing
+# URLs. Use "\<" and "\>" to match the beginning and end of words, or perform
+# several replacement runs, replacing longer string instances each time.
+
+# An example strings replacement. Read the above to why this is a terrible
+# example.
+sed -i -E 's@%make@%make_build@' "$@"

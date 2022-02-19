@@ -1,0 +1,38 @@
+#!/bin/bash
+# Change the URL in a spec file which may include macros that need expanding
+#
+# Copyright © 2022 Daniel Fandrich.
+# This program is free software; you can redistribute it and/or modify
+# Licensed under GNU General Public License 2.0 or later.
+# Some rights reserved. See COPYING.
+#
+# This sample script changes two previous project home page URL styles
+# on http://pear.horde.org/.  A simple sed replacement doesn't work in this
+# case because the macros need to be expanded in order to lower-case the
+# project name. This script uses rpmspec to expand the macros before
+# lower-casing it and replacing the original URL.
+#
+# If the file "list" contains a list of spec files, one per line, run the
+# script on them like this:
+#   xargs -n1 change-parsed-url < list
+
+# Abort in case of error
+set -e
+
+URL="$(rpmspec -q --queryformat '%{URL}\n' "$1")"
+case "$URL" in
+    http://pear.horde.org/index.php\?package=*)
+        # First style of project link
+        NEWURL="$(sed -E 's@http://pear.horde.org/index.php\?package=(.*)$@https://pear.horde.org/#\L\1@' <<< "$URL")"
+        ;;
+    http://pear.horde.org/package/*)
+        # Alternate style of project link
+        NEWURL="$(sed -E 's@http://pear.horde.org/package/(.*)$@https://pear.horde.org/#\L\1@' <<< "$URL")"
+        ;;
+    *) echo Unrecognized URL "$URL" 1>&2
+        exit 1
+        ;;
+esac
+# Replace the URL line with the new URL
+sed -i -E "s!^([Uu][Rr][Ll]:[[:space:]]+).*\$!\1${NEWURL}!" "$1"
+echo Changed URL from "$URL" to "$NEWURL"

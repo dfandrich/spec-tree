@@ -3,7 +3,7 @@
 ## Overview
 
 This package contains tools to manage a large set of RPM .spec files, tailored
-for the Mageia Linux distribution.  The scripts allow you to check out all the
+for the [Mageia Linux] distribution.  The scripts allow you to check out all the
 possible spec files in order to perform large-scale refactoring or changes, to
 search all the spec files, or to perform analysis on them.
 
@@ -140,9 +140,9 @@ might look like this.
 
 3. Change the spec files you've identified as needing updates.  Limit your
    changes so that a single commit message will apply to all of them.  This can
-   done with a custom script, or you might be able to do it with a simple
-   command like this one, which replaces one string with another in all the
-   files identified in the previous step:
+   done with a custom script (see [examples] for some), or you might be able to
+   do it with a simple command like this one, which replaces one string with
+   another in all the files identified in the previous step:
 
     `xargs sed -i 's@https://www\.example\.com@https://www.example.net@g' </tmp/files`
 
@@ -164,14 +164,29 @@ might look like this.
 
     `list-unclean-repo`
 
+The example scripts are full of advice about avoiding specific dangers of
+making mass changes that you should consider before designing your own change
+scripts. Please respect the privilege of being able modify every spec file in
+the distribution by ensuring your changes don't break anything.
+
+## Examples
+
+See the [examples] directory for some example scripts which can perform some
+typical spec file management tasks with Spec Tree. Modify them as you will
+to fit the task you have in mind.
+
 ## Author
 
 Daniel Fandrich <dan@coneharvesters.com>
 
-See more info at the
-[project home page](https://github.com/dfandrich/spec-tree/).
+See more info at the [project home page].
 
 This program is Copyright © 2014–2022 Daniel Fandrich. It is distributed under
 the terms of the GNU General Public License as published by the Free Software
 Foundation; either version 2 of the License, or (at your option) any later
-version. See [COPYING](COPYING) for details.
+version. See [COPYING] for details.
+
+[Mageia Linux]: https://www.mageia.org/
+[examples]: examples/
+[project home page]: https://github.com/dfandrich/spec-tree/
+[COPYING]: COPYING

@@ -8,7 +8,12 @@
 #
 # This is needed to bootstrap a spec directory. To update them later, run
 # update-all-specs and checkout-new-specs, which should be slightly more
-# efficient.
+# efficient. This creates a "spec only" style tree.
+#
+# There is an unofficial daily snapshot available at
+# https://pkgsubmit.mageia.org/specs/cauldron-sparse-svn-snapshot.tar.xz that
+# extracts into a "massive checkout" style tree of .spec files as an
+# alternative.
 
 set -e
 #export BASE_SVN='svn+ssh://svn.mageia.org/svn/packages/cauldron/'

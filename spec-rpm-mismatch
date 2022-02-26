@@ -10,7 +10,8 @@ Usage: spec-rpm-mismatch >report.html 2>errors.log
  within directory prepared by checkout-all-specs
 
 TODO:
-    fix warnings from .spec files with weird macros calling external programs
+    - fix warnings from .spec files with weird macros calling external programs
+    - get the maintdb file from https://pkgsubmit.mageia.org/data/maintdb.txt
 '''
 
 import argparse

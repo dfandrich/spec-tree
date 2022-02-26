@@ -5,6 +5,8 @@
 # This program is free software; you can redistribute it and/or modify
 # Licensed under GNU General Public License 2.0 or later.
 # Some rights reserved. See COPYING.
+#
+# TODO: get the maintdb file from https://pkgsubmit.mageia.org/data/maintdb.txt
 
 set -e
 readonly SPEC_TREE="${SPEC_TREE:-.}"

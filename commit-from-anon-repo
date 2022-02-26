@@ -26,11 +26,17 @@ for f in "$@"; do
     OLDU="$(svn info --show-item url)"
     NEWU="$(sed 's/^svn:/svn+ssh:/' <<<"$OLDU")"
     if [[ -z "$OLDU" || "$OLDU" == "$NEWU" ]]; then
-        echo Error: URL could not be converted at "$D"
+        echo Error: URL could not be converted at "$D" 1>&2
     else
-        svn relocate "$OLDU" "$NEWU" &&
-            svn ci -m "${COMMENT}" &&
+        if svn relocate "$OLDU" "$NEWU" &&
+            svn ci -m "${COMMENT}"; then
+            # Successful submission; clean up & update
             svn relocate "$NEWU" "$OLDU" &&
-            svn up
+                svn up
+        else
+            # Failed submission; clean up only
+            echo Failed svn commit 1>&2
+            svn relocate "$NEWU" "$OLDU"
+        fi
     fi
 done

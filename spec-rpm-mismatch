@@ -69,17 +69,19 @@ UNKNOWN_PACKAGER = '?'
 SVNWEB_URL_TEMPLATE = 'https://svnweb.mageia.org/packages/{version}/{package}/current/SPECS/{package}.spec'
 
 HTML_HEADER = textwrap.dedent('''\
-    <!DOCTYPE html>
-    <html><head>
-    <meta name="GENERATOR" content="spec-rpm-mismatch">
+     <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+    <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en"><head>
+    <meta name="GENERATOR" content="spec-rpm-mismatch" />
     <title>Spec Build Report</title>
     <style type="text/css">
+    /*<![CDATA[*/
       .release {
         background-color: #f0f0ff;
       }
       .distrib {
         background-color: #fff0f0;
       }
+    /*]]>*/
     </style>
     </head>
     <body>
@@ -476,19 +478,19 @@ class PackageProcessor:
               f'as of {time.strftime("%Y-%m-%d")}</h1>')
 
         if self.result.has_matching(NoSrpmFile):
-            print('<a href="#no_rpm">Missing RPMs</a><br>')
+            print('<a href="#no_rpm">Missing RPMs</a><br />')
 
-        print('<a href="#wrong_version">Wrong RPM version</a><br>')
+        print('<a href="#wrong_version">Wrong RPM version</a><br />')
 
         if self.result.has_matching(ParseError):
-            print('<a href="#errors">Spec parsing errors</a><br>')
+            print('<a href="#errors">Spec parsing errors</a><br />')
 
         if self.result.has_matching(VersionMatch):
-            print('<a href="#match_version">Matching RPM versions</a><br>')
+            print('<a href="#match_version">Matching RPM versions</a><br />')
 
         if self.result.has_matching(NoSrpmFile):
             print(textwrap.dedent(f'''
-                <a name="no_rpm"></a>
+                <a id="no_rpm"></a>
                 <h2>Spec files with no matching RPM of any version</h2>
 
                 There is no package SRPM in the {SRPM_VERSION} release matching the associated
@@ -496,9 +498,11 @@ class PackageProcessor:
                 successfully built, or because the package has been obsoleted and
                 removed from the distribution but the .spec file was never moved to
                 packages/obsolete.
-                <p>
-                ({len(self.result.matching(NoSrpmFile))} packages)
-                <table>
+                <p>({len(self.result.matching(NoSrpmFile))} packages)</p>
+                <!-- Extract the data in this table in CSV format with the command:
+                     xmlstarlet sel -N x=http://www.w3.org/1999/xhtml -t -m '//x:table[@id="norpms"]/x:tr[x:td]' -v 'x:td[2]' -o ',' -v 'x:td[1]' -nl
+                -->
+                <table id="norpms">
                 <tr>
                   <th>Maintainer</th>
                   <th>Package</th>
@@ -515,7 +519,7 @@ class PackageProcessor:
             print('</table>')
 
         print(textwrap.dedent(f'''
-            <a name="wrong_version"></a>
+            <a id="wrong_version"></a>
             <h2>Wrong RPM version</h2>
 
             The latest version of the SRPM does not match the version in the .spec
@@ -524,9 +528,11 @@ class PackageProcessor:
             packages with equal versions but differ only in the release number.
             Red shaded lines are packages that haven't been rebuilt since the
             last distribution release.
-            <p>
-            ({len(self.result.matching(VersionMismatch))} packages)
-            <table>
+            <p>({len(self.result.matching(VersionMismatch))} packages)</p>
+            <!-- Extract the data in this table in CSV format with the command:
+                 xmlstarlet sel -N x=http://www.w3.org/1999/xhtml -t -m '//x:table[@id="wrongversions"]/x:tr[x:td]' -v 'x:td[2]' -o ',' -v 'x:td[3]' -o ',' -v 'x:td[1]' -nl
+            -->
+            <table id="wrongversions">
             <tr>
               <th>Maintainer</th>
               <th>RPM version</th>
@@ -553,7 +559,7 @@ class PackageProcessor:
 
         if self.result.has_matching(ParseError):
             print(textwrap.dedent(f'''
-                <a name="errors"></a>
+                <a id="errors"></a>
                 <h2>Could not determine version number from these packages</h2>
 
                 This could be due to a syntax error in the .spec file, a missing
@@ -563,9 +569,11 @@ class PackageProcessor:
                 reporting script so this is expected), a mismatch between the SVN
                 directory and the .spec file name, or an internal error in the script
                 generating this report.
-                <p>
-                ({len(self.result.matching(ParseError))} packages)
-                <table>
+                <p>({len(self.result.matching(ParseError))} packages)</p>
+                <!-- Extract the data in this table in CSV format with the command:
+                     xmlstarlet sel -N x=http://www.w3.org/1999/xhtml -t -m '//x:table[@id="noversions"]/x:tr[x:td]' -v 'x:td[1]' -nl
+                -->
+                <table id="noversions">
                 <tr>
                   <th>Package</th>
                 </tr>
@@ -581,20 +589,22 @@ class PackageProcessor:
 
         if self.result.has_matching(VersionMatch):
             print('''
-            <a name="match_version"></a>
+            <a id="match_version"></a>
             <h2>Spec &amp; RPM versions match</h2>
 
             The version of the SRPM matches the version in the .spec file. This is
             the desired state, so these are the only packages without error.
-            <p>
             ''')
             if len(self.result.matching(VersionMatch)) > 300:
-                print('%d spec files have matching RPMs (not shown)' %
+                print('<p>%d spec files have matching RPMs (not shown)</p>' %
                       len(self.result.matching(VersionMatch)))
             else:
                 print(textwrap.dedent(f'''
-                    ({len(self.result.matching(VersionMatch))} packages)
-                    <table>
+                    <p>({len(self.result.matching(VersionMatch))} packages)</p>
+                    <!-- Extract the data in this table in CSV format with the command:
+                         xmlstarlet sel -N x=http://www.w3.org/1999/xhtml -t -m '//x:table[@id="matchingversions"]/x:tr[x:td]' -v 'x:td[2]' -o ',' -v 'x:td[1]' -nl
+                    -->
+                    <table id="matchingversions">
                     <tr>
                       <th>Maintainer</th>
                       <th>Spec/RPM version</th>

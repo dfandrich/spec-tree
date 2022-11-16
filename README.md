@@ -16,7 +16,7 @@ package (the "spec only" style). For example:
 
 This is what you would get when using `mgarepo co -s X` for each package.
 
-All scripts other than `checkout-all-specs` and `update-all-specs` also
+Most scripts (the exceptions are listed in the usage section below) also
 support the standard checkout format (a.k.a. "individual packages") which looks
 like:
 
@@ -108,7 +108,7 @@ perform a case-insensitive search:
 ### match-spec-maintainer
 
 `match-spec-maintainer` lists all packages whose spec files match a perl-style
-regular expression (like `findspec`) and but lists the package names along with
+regular expression (like `findspec`) and lists the package names along with
 their maintainer's user ID in a tab-separated format:
 
     match-spec-maintainer 'python2|py2'
@@ -122,6 +122,10 @@ change that (run it with `-h` to see them). Run it like this:
 
     cd TOP
     spec-rpm-mismatch >/tmp/report.html 2>/tmp/errors.log
+
+The output is XHTML which can be queried to extract the data in a structured
+way using XML tools. See the XHTML source for comments showing how to use
+`xmlstarlet` to extract each table of information into CSV format.
 
 ## Workflows
 

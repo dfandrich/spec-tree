@@ -1,0 +1,19 @@
+#!/bin/bash
+# Extract a table of mismatched Spec & RPM versions from spec-rpm-mismatch
+#
+# Copyright © 2022 Daniel Fandrich.
+# This program is free software; you can redistribute it and/or modify
+# Licensed under GNU General Public License 2.0 or later.
+# Some rights reserved. See COPYING.
+#
+# This sample script takes the output of spec-rpm-mismatch but outputs in CSV
+# form only the packages where the spec & RPM versions do not match. This shows
+# how to mechanically process the XHTML output and transform it to obtain
+# useful information.
+#
+# Usage:
+#   spec-rpm-mismatch | mismatch-csv
+# or:
+#   mismatch-csv report.html
+
+exec xmlstarlet sel -N x=http://www.w3.org/1999/xhtml -t -m '//x:table[@id="wrongversions"]/x:tr[x:td]' -v 'x:td[2]' -o ',' -v 'x:td[3]' -o ',' -v 'x:td[1]' -nl "$@"

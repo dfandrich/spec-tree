@@ -234,6 +234,9 @@ class HTMLDirParser(html.parser.HTMLParser):
         self.table_state = self.TableState.NONE
         self.links = []
 
+    def error(self, message: str):
+        warning(message)
+
     def handle_starttag(self, tag, attrs):
         if tag == 'th':
             self.table_state = self.TableState.TH

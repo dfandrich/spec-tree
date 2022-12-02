@@ -11,7 +11,6 @@ Usage: spec-rpm-mismatch >report.html 2>errors.log
 
 TODO:
     - fix warnings from .spec files with weird macros calling external programs
-    - get the maintdb file from https://pkgsubmit.mageia.org/data/maintdb.txt
 '''
 
 import argparse
@@ -47,6 +46,9 @@ SRPM_DISTRO_RELEASE = '9'  # Default distro release number, i.e. the X in mgaX
 SRPM_VERSION = 'cauldron'
 SRPM_MEDIAS = ['tainted', 'nonfree', 'core']
 SRPM_SECTION = 'release'
+
+# Source for the maintdb
+MAINTDB_URL = 'https://pkgsubmit.mageia.org/data/maintdb.txt'
 
 
 class SpecStyle(enum.IntEnum):
@@ -93,10 +95,35 @@ HTML_FOOTER = textwrap.dedent('''
 ''')
 
 
+def get_packagers_mgarepo() -> Dict[str, str]:
+    '''Retrieve a dict containing packagers for each package
+
+    This uses the mgarepo command to get the maintdb, but that requires a
+    Mageia packager account. Although this function isn't currently used, it's
+    still a working alternative in case MAINTDB_URL ever goes away.'''
+    packagers = collections.defaultdict(lambda: UNKNOWN_PACKAGER)
+    cmd = 'mgarepo maintdb get'
+    info("Running: %s", cmd)
+    pipe = os.popen(cmd, 'r')
+    while True:
+        line = pipe.readline()
+        if not line:
+            break
+        try:
+            package, packager = tuple(line.strip().split())
+        except ValueError:
+            error('Problem getting packager on %s' % line.strip())
+        else:
+            packagers[package] = packager
+    if pipe.close():
+        error('Problem retrieving the maintdb')
+    return packagers
+
+
 def get_packagers() -> Dict[str, str]:
     'Retrieve a dict containing packagers for each package'
     packagers = collections.defaultdict(lambda: UNKNOWN_PACKAGER)
-    cmd = 'mgarepo maintdb get'
+    cmd = 'curl -f -s --compressed ' + shlex.quote(MAINTDB_URL)
     info("Running: %s", cmd)
     pipe = os.popen(cmd, 'r')
     while True:

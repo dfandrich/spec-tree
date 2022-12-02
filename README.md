@@ -30,6 +30,8 @@ Many scripts also support the "massive checkout" style, which looks like:
     TOP/coolprogram/current/SPECS/coolprogram.spec
     TOP/greatcode/current/SPECS/greatcode.spec
 
+This is what you would get by using `svn co` on the base of an entire SVN tree.
+
 ## Usage
 
 ### checkout-all-specs
@@ -44,6 +46,13 @@ This generates a "spec only" style spec tree.  To make some of the other
 scripts easier to use, set the `SPEC_TREE` environment variable to this path.
 If you don't do this, you'll need to change to this TOP directory first for the
 remaining scripts to work.
+
+This command can take many hours to complete when running on a high latency
+connection. Mageia regularly creates a snapshot of a "massive checkout" SVN
+tree at https://pkgsubmit.mageia.org/specs/cauldron-sparse-svn-snapshot.tar.xz
+that can be used to more quickly initialize a usable spec tree than by using
+this script.  However, not all scripts in this project support the massive
+checkout tree that is produced using that dump.
 
 This script only supports a "spec only" style tree.
 
@@ -85,7 +94,10 @@ names, like this:
 
     commit-from-anon-repo -m 'The commit message' apackage greatcode
 
-This script does not support a "massive checkout" style tree.
+This script does not support a "massive checkout" style tree. But, that's not
+really an issue since you don't really need this script with a massive checkout
+tree. This script always performs a single commit per package but a massive
+checkout tree lets you perform a single commit spanning multiple packages.
 
 ### list-unclean-repo
 
@@ -94,7 +106,9 @@ lists those that have local changes that haven't yet been checked-in:
 
     list-unclean-repo
 
-This script does not support a "massive checkout" style tree.
+This script does not support a "massive checkout" style tree. But, that's not
+really an issue since you can just run a single "svn status" command to find
+all unclean directories in a massive checkout tree.
 
 ### findspec
 

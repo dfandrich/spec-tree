@@ -96,15 +96,17 @@ URL back. If something goes wrong during the check-in, this might leave the
 repo set with the SSH URL, which you will need to manually fix to maintain
 speed and consistency.
 
-Any error that occurs during check-in will be ignored. This most commonly
-occurs if someone else has checked in a change since your version of a spec
-file was checked out. The `list-unclean-repo` script can be helpful to ensure
-that everything in the spec tree was checked in.
+Any error that occurs during check-in will be ignored and operation will
+continue with the next argument. This most commonly occurs if someone else has
+checked in a change since your version of a spec file was checked out. If an
+error occurs, the last file to error out will be displayed on completion of the
+script and the exit code will be non-zero.  `list-unclean-repo` script can be
+helpful to see which modified files were not checked in.
 
 This script does not support a "massive checkout" style tree. But, that's not
-really an issue since you don't really need this script with a massive checkout
-tree. This script always performs a single commit per package but a massive
-checkout tree lets you perform a single commit spanning multiple packages.
+really an issue since you don't really need this script in that case.  A
+massive checkout tree lets you perform a single commit spanning multiple
+packages while this script always performs a single commit per package.
 
 ### list-unclean-repo
 

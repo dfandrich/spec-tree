@@ -80,10 +80,6 @@ use the `commit-from-anon-repo` script like this:
 
     commit-from-anon-repo -m 'The commit message' /path/to/TOP/apackage/apackage.spec /path/to/TOP/greatcode/greatcode.spec
 
-This script operates by temporarily changing the repo URL for the given file
-from an anonymous svn one to a SSH one, checking in the file, then changing the
-URL back. If something goes wrong during the check-in, this might leave the
-repo with the SSH URL which you should manually fix for speed and consistency.
 The arguments are designed to come straight from a `grep -l …` command, and
 everything in the containing repo will be submitted, not just the given file
 alone. If the repo already had an SSH URL, it will be switched to an anonymous
@@ -93,6 +89,17 @@ Instead of absolute paths to files in the repo, the arguments can be bare repo
 names, like this:
 
     commit-from-anon-repo -m 'The commit message' apackage greatcode
+
+This script operates by temporarily changing the repo URL for the given file
+from an anonymous svn one to a SSH one, checking in the file, then changing the
+URL back. If something goes wrong during the check-in, this might leave the
+repo set with the SSH URL, which you will need to manually fix to maintain
+speed and consistency.
+
+Any error that occurs during check-in will be ignored. This most commonly
+occurs if someone else has checked in a change since your version of a spec
+file was checked out. The `list-unclean-repo` script can be helpful to ensure
+that everything in the spec tree was checked in.
 
 This script does not support a "massive checkout" style tree. But, that's not
 really an issue since you don't really need this script with a massive checkout

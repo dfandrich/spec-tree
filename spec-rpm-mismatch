@@ -78,10 +78,10 @@ HTML_HEADER = textwrap.dedent('''\
     <style type="text/css">
     /*<![CDATA[*/
       .release {
-        background-color: #f0f0ff;
+        background-color: #e0e0ff;
       }
       .distrib {
-        background-color: #fff0f0;
+        background-color: #ffe0e0;
       }
     /*]]>*/
     </style>
@@ -553,11 +553,14 @@ class PackageProcessor:
             <h2>Wrong RPM version</h2>
 
             The latest version of the SRPM does not match the version in the .spec
-            file.  This may be because no-one has submitted the latest version to be
-            built, or because the last attempted build failed. Blue shaded lines are
-            packages with equal versions but differ only in the release number.
-            Red shaded lines are packages that haven't been rebuilt since the
-            last distribution release.
+            file.  This may be because no-one has submitted the latest version to
+            be built, or because the last attempted build failed. A package may
+            also show up here as a false positive if it was changed or built
+            around the same time this report was generated.
+            <span class="release">Blue shaded lines</span> are packages with
+            equal versions but differ only in the release number.
+            <span class="distrib">Red shaded lines</span> are packages that
+            haven't been rebuilt since the last distribution release.
             <p>({len(self.result.matching(VersionMismatch))} packages)</p>
             <!-- Extract the data in this table in CSV format with the command:
                  xmlstarlet sel -N x=http://www.w3.org/1999/xhtml -t -m '//x:table[@id="wrongversions"]/x:tr[x:td]' -v 'x:td[2]' -o ',' -v 'x:td[3]' -o ',' -v 'x:td[1]' -nl

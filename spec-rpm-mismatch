@@ -112,7 +112,7 @@ def get_packagers_mgarepo() -> Dict[str, str]:
         try:
             package, packager = tuple(line.strip().split())
         except ValueError:
-            error('Problem getting packager on %s' % line.strip())
+            error('Problem getting packager on %s', line.strip())
         else:
             packagers[package] = packager
     if pipe.close():
@@ -123,7 +123,7 @@ def get_packagers_mgarepo() -> Dict[str, str]:
 def get_packagers() -> Dict[str, str]:
     'Retrieve a dict containing packagers for each package'
     packagers = collections.defaultdict(lambda: UNKNOWN_PACKAGER)
-    cmd = 'curl -f -s --compressed ' + shlex.quote(MAINTDB_URL)
+    cmd = 'curl -f -s --compressed -- ' + shlex.quote(MAINTDB_URL)
     info("Running: %s", cmd)
     pipe = os.popen(cmd, 'r')
     while True:
@@ -133,7 +133,7 @@ def get_packagers() -> Dict[str, str]:
         try:
             package, packager = tuple(line.strip().split())
         except ValueError:
-            error('Problem getting packager on %s' % line.strip())
+            error('Problem getting packager on %s', line.strip())
         else:
             packagers[package] = packager
     if pipe.close():
@@ -227,7 +227,7 @@ def retrieve_dir_contents_curl(url: str) -> List[str]:
     ftp allows a trivially-parsed directory listing.
     '''
     listing = []
-    cmd = 'curl -f -s -l --ftp-method SINGLECWD --ssl ' + shlex.quote(url)
+    cmd = 'curl -f -s -l --ftp-method SINGLECWD --ssl -- ' + shlex.quote(url)
     info("Running: %s", cmd)
     pipe = os.popen(cmd, 'r')
     while True:
@@ -287,7 +287,7 @@ def retrieve_dir_contents_http(url: str) -> List[str]:
     'Return an HTML directory listing via HTTP/S'
     htmlp = HTMLDirParser()
 
-    cmd = 'curl -f -s --compressed ' + shlex.quote(url)
+    cmd = 'curl -f -s --compressed -- ' + shlex.quote(url)
     info("Running: %s", cmd)
     pipe = os.popen(cmd, 'r')
     while True:
@@ -351,11 +351,11 @@ def get_srpm_name_stub_from_spec(spec_file: str, release: str) -> str:
     '''
     # %dist includes the mgaX version of the current machine by default, which
     # might not match that of release, so construct the version ourselves.
-    cmd = 'rpmspec -q -D"dist ."%s --queryformat "%%{NAME}-%%{VERSION}-%%{RELEASE}\n" %s' % \
+    cmd = 'rpmspec -q -D"dist ."%s --queryformat "%%{NAME}-%%{VERSION}-%%{RELEASE}\n" -- %s' % \
           (shlex.quote(release), shlex.quote(spec_file))
     debug("Running: %s", cmd)
     pipe = os.popen(cmd, 'r')
-    # There may be many RPMs generated, but the one is the one with the SRPM
+    # There may be many RPMs generated, but the first one is the one with the SRPM
     line = pipe.readline()
     if not line:
         return ''
@@ -715,16 +715,16 @@ def main(argv: List[str]) -> int:
         return 1
 
     spec_style = determine_spec_tree_style(args.local_packages)
-    info('Spec file checkout style in use is %s' % SPEC_STYLE_NAME[spec_style])
+    info('Spec file checkout style in use is %s', SPEC_STYLE_NAME[spec_style])
     if spec_style == SpecStyle.SPEC_STYLE_UNKNOWN:
         fatal('Unknown checkout style')
         return 1
 
-    info('%d package directories found' % len(spec_packages))
+    info('%d package directories found', len(spec_packages))
 
     all_rpms, all_packages = retrieve_all_packages(args.srpm_source)
 
-    info('%d total SRPM packages found on server' % len(all_packages))
+    info('%d total SRPM packages found on server', len(all_packages))
     if not all_packages:
         fatal('No packages found. Try a different mirror.')
         return 2
@@ -732,7 +732,7 @@ def main(argv: List[str]) -> int:
     packagers = get_packagers()
     if not packagers:
         warning('Packager list could not be retrieved. Packagers will not be shown.')
-    info('%d packages+packagers known' % len(packagers))
+    info('%d packages+packagers known', len(packagers))
 
     proc = PackageProcessor(all_rpms, all_packages, spec_style, args.release)
 

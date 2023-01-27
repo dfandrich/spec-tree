@@ -1,0 +1,40 @@
+#!/bin/bash
+# Generate a URL check report using the latest spec file snapshot.
+#
+# Copyright © 2023 Daniel Fandrich.
+# This program is free software; you can redistribute it and/or modify
+# Licensed under GNU General Public License 2.0 or later.
+# Some rights reserved. See COPYING.
+#
+# The result is stored in files called report.html and errors.log in the
+# current directory.  Any command-line arguments are passed directly to
+# spec-url-check.
+set -e
+
+readonly SNAPSHOT=https://pkgsubmit.mageia.org/specs/cauldron-no-svn-snapshot.tar.xz
+
+if [[ -e report.html || -e errors.log ]]; then
+    echo Error: report.html and/or errors.log already exist 1>&2
+    exit 1
+fi
+
+TMPD="$(mktemp -d --tmpdir=/tmp/)"
+# Make sure it's not blank or / to avoid catastrophe when cleaning up
+test -n "$TMPD" -a "$TMPD" !=  /
+# Clean up on exit
+trap 'test "$?" -eq 0 || echo Aborting; rm -rf "$TMPD"/tree; rm -f "$TMPD"/*; rmdir "$TMPD"' EXIT
+
+echo Downloading spec snapshot from "$SNAPSHOT" 1>&2
+mkdir "$TMPD"/tree
+curl -fsS "$SNAPSHOT" | \
+    xz -d | \
+    tar -C "$TMPD"/tree -xf -
+
+echo Generating report 1>&2
+pushd "$TMPD"/tree/cauldron >/dev/null
+spec-url-check "$@" >"$TMPD"/report.html 2>"$TMPD"/errors.log
+popd >/dev/null
+
+mv "$TMPD"/report.html "$TMPD"/errors.log .
+
+echo Done 1>&2

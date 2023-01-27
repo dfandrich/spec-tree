@@ -150,6 +150,24 @@ The output is XHTML which can be queried to extract the data in a structured
 way using XML tools. See the XHTML source for comments showing how to use
 `xmlstarlet` to extract each table of information into CSV format.
 
+The `rpmspec` and `curl` applications must be available on the PATH.
+
+### spec-url-check
+
+`spec-url-check` generates a report of URLs found in spec files and whether
+or not they point to valid resources. Those that cannot be accessed are noted.
+Run it like this:
+
+    cd TOP
+    spec-url-check >/tmp/report.html 2>/tmp/errors.log
+
+The output is XHTML which can be queried to extract the data in a structured
+way using XML tools. See the XHTML source for comments showing how to use
+`xmlstarlet` to extract each table of information into CSV format.
+
+The `rpmspec`, `spectool` and `curl` applications must be available on the
+PATH.
+
 ## Workflows
 
 `spec-tree` is intended for mass changes to spec files. A typical workflow

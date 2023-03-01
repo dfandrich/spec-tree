@@ -27,7 +27,7 @@ import time
 from dataclasses import dataclass
 from html import escape
 from logging import debug, error, fatal, info, warning
-from typing import Callable, Dict, Iterable, List, Set, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 from urllib.parse import quote
 
 from spectree import spectree
@@ -552,7 +552,7 @@ def check_urls(urls: Iterable[str], redirect: bool = False) -> Dict[str, UrlStat
     return process_urls(check_url_batch, batches, redirect)
 
 
-def main(argv: List[str]) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
 
     parser = argparse.ArgumentParser(
@@ -569,7 +569,7 @@ def main(argv: List[str]) -> int:
     parser.add_argument(
         '-v', '--verbose', action='store_true',
         help='Whether to show verbose debug logs.')
-    args = parser.parse_args(args=argv[1:])
+    args = parser.parse_args(args=argv)
 
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -638,4 +638,4 @@ def main(argv: List[str]) -> int:
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+    sys.exit(main())

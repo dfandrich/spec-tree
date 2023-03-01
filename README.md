@@ -32,6 +32,20 @@ Many scripts also support the "massive checkout" style, which looks like:
 
 This is what you would get by using `svn co` on the base of an entire SVN tree.
 
+## Installation
+
+The latest source code can be obtained from
+https://github.com/dfandrich/spec-tree/
+
+The scripts are written in a mix of Python and Bourne shell. They rely on some
+standard POSIX utilities as well as `curl`, `rpmspec` and `spectool`.
+
+Build and install the latest release of code from GitHub with:
+
+    pip3 install https://glare.now.sh/dfandrich/spec-tree/tar
+
+The Python module is not intended to maintain a stable API.
+
 ## Usage
 
 ### checkout-all-specs
@@ -226,7 +240,7 @@ Daniel Fandrich <dan@coneharvesters.com>
 
 See more info at the [project home page].
 
-This program is Copyright © 2014–2022 Daniel Fandrich. It is distributed under
+This program is Copyright © 2014–2023 Daniel Fandrich. It is distributed under
 the terms of the GNU General Public License as published by the Free Software
 Foundation; either version 2 of the License, or (at your option) any later
 version. See [COPYING] for details.

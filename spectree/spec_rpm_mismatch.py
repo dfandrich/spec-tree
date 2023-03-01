@@ -28,7 +28,7 @@ import urllib.parse
 from dataclasses import dataclass
 from html import escape, unescape
 from logging import debug, error, fatal, info, warning
-from typing import Dict, List, Set, Tuple, Type, TypeVar
+from typing import Dict, List, Optional, Set, Tuple, Type, TypeVar
 
 from spectree import spectree
 
@@ -557,7 +557,7 @@ class MgaReleaseTagAction(argparse.Action):
             setattr(namespace, self.dest, values)
 
 
-def main(argv: List[str]) -> int:
+def main(argv: Optional[List[str]] = None) -> int:
     logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
 
     parser = argparse.ArgumentParser(
@@ -579,7 +579,7 @@ def main(argv: List[str]) -> int:
     parser.add_argument(
         '-v', '--verbose', action='store_true',
         help='Whether to show verbose debug logs.')
-    args = parser.parse_args(args=argv[1:])
+    args = parser.parse_args(args=argv)
 
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
@@ -635,4 +635,4 @@ def main(argv: List[str]) -> int:
 
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+    sys.exit(main())

@@ -159,7 +159,7 @@ class HTMLDirParser(html.parser.HTMLParser):
         self.links = []
 
     def error(self, message: str):
-        warning(message)
+        warning("%s", message)
 
     def handle_starttag(self, tag, attrs):
         if tag == 'th':

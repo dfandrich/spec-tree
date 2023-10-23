@@ -38,7 +38,9 @@ The latest source code can be obtained from
 https://github.com/dfandrich/spec-tree/
 
 The scripts are written in a mix of Python and Bourne shell. They rely on some
-standard POSIX utilities as well as `curl`, `rpmspec` and `spectool`.
+standard POSIX utilities as well as `curl`, `rpmspec` and `spectool` (they are
+probably in packages called `curl`, `rpm-build` and `rpmdevtools`,
+respectively).
 
 Build and install the latest release of code from GitHub with:
 

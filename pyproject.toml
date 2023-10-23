@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spec-tree"
+description = "Tools to manage a large set of RPM .spec files"
+version = "2023.1"
+readme = "README.md"
+authors = [{name = "Dan Fandrich", email = "dan@coneharvesters.com"}]
+license = {text = "GPLv2+"}
+classifiers = [
+    "Programming Language :: Python",
+    "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Topic :: System :: Archiving :: Packaging",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
+requires-python = ">=3.8"
+
+[project.urls]
+homepage = "https://github.com/dfandrich/spec-tree/"
+
+[project.scripts]
+spec-rpm-mismatch = "spectree.spec_rpm_mismatch:main"
+spec-url-check = "spectree.spec_url_check:main"
+
+[tool.setuptools]
+packages = ["spectree"]
+script-files = [
+    "checkout-all-specs",
+    "commit-from-anon-repo",
+    "findspec",
+    "list-unclean-repo",
+    "match-spec-maintainer",
+    "update-all-specs",
+]
+license-files = ["COPYING"]
+include-package-data = false
+
+[tool.flake8]
+max-line-length = "132"

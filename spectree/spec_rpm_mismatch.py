@@ -436,9 +436,11 @@ class PackageProcessor:
 
             The latest version of the SRPM does not match the version in the .spec
             file.  This may be because no-one has submitted the latest version to
-            be built, or because the last attempted build failed. A package may
-            also show up here as a false positive if it was changed or built
-            around the same time this report was generated.
+            be built, or because the last attempted build failed. This section will
+            be very large between the time a distro release is branched and the
+            first mass build of the next release version.
+            A package may also show up here as a false positive if it was
+            changed or built around the same time this report was generated.
             <span class="release">Blue shaded lines</span> are packages with
             equal versions but differ only in the release number.
             <span class="distrib">Red shaded lines</span> are packages that

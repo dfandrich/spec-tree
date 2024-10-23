@@ -417,7 +417,11 @@ def status_from_response_code(response_code: int, url: str) -> UrlStatus:
 
 
 def get_curl_timeout_factor() -> int:
-    """Determine what units curl returns for timeouts."""
+    """Determine what units curl returns for timeouts.
+
+    Version 7.74.0 had a bug that returned microseconds instead of seconds in
+    --write-out.
+    """
     cmd = 'curl -V'
     with os.popen(cmd, 'r') as pipe:
         line = pipe.readline()
@@ -464,8 +468,6 @@ def check_url_batch(batch: set[str], redirect: bool) -> dict[str, UrlStatus]:
     with os.popen(cmd, 'r') as pipe:
         while line := pipe.readline():
             debug('RESULTS: %s', line.strip())
-            # curl 7.74.0 returned microseconds instead of seconds.
-            # This will need to be updated to work on that version.
             response_code, ssl_verify_result, time_connect, time_total, num_connects, _ = line.strip().split(maxsplit=5)
             response_code, ssl_verify_result, time_connect, time_total, num_connects = (
                 int(response_code), int(ssl_verify_result), int(float(time_connect) * timeout_factor), int(float(time_total) * timeout_factor), int(num_connects))

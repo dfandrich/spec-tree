@@ -24,6 +24,37 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 
+[project.optional-dependencies]
+dev = [
+    "flake8",
+    "flake8-assertive",
+    "flake8-bugbear",
+    "flake8-builtins",
+    "flake8-classmethod-staticmethod",
+    "flake8-comprehensions",
+    "flake8-datetimez",
+    "flake8-deprecated",
+    "flake8-docstrings",
+    "flake8-get-chaining",
+    "flake8-import-order",
+    "flake8-mutable",
+    "flake8-no-pep420",
+    "flake8-noqa",
+    "flake8-picky-parentheses",
+    "flake8-pie",
+    "flake8-pyproject",
+    "flake8-quotes",
+    "flake8-raise",
+    "flake8-requirements",
+    "flake8-return",
+    "flake8-sfs",
+    "flake8-simplify",
+    "flake8-super",
+    "flake8-warnings",
+    "flake8-wot",
+    "pytype"
+]
+
 [project.urls]
 homepage = "https://github.com/dfandrich/spec-tree/"
 
@@ -44,5 +75,11 @@ script-files = [
 license-files = ["COPYING"]
 include-package-data = false
 
+# flake8-pyproject must be installed for flake8 to use these settings
 [tool.flake8]
-max-line-length = "132"
+ignore = ["D107", "D204", "E501", "PAR101", "PAR103", "PLU002", "SFS301", "W503"]
+docstring-convention = "google"
+blanks-before-imports = 1
+
+[tool.flake8.known-modules]
+spec-tree = ["spectree"]

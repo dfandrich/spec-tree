@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-'''Check URLs in spec files
+"""Check URLs in spec files.
 
 Copyright © 2023 Daniel Fandrich.
 This program is free software; you can redistribute it and/or modify
@@ -9,10 +9,12 @@ Some rights reserved. See COPYING.
 Usage: bad-url-report >report.html 2>errors.log
  within directory prepared by checkout-all-specs
 
-TODO:
+Todo:
 - check http: links and see if the corresponding https: one works
 - maybe do a recheck of TIMEOUT and BAD_HOST error URLs as well in case they're also temporary
-'''
+"""
+
+from __future__ import annotations
 
 import argparse
 import concurrent.futures
@@ -27,7 +29,7 @@ import time
 from dataclasses import dataclass
 from html import escape
 from logging import debug, error, fatal, info, warning
-from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Callable, Iterable, Optional
 from urllib.parse import quote
 
 from spectree import spectree
@@ -63,7 +65,7 @@ URL_TIMEOUT = 7
 # Time in seconds to wait for each URL when redirects are followed
 URL_TIMEOUT_REDIRECT = 25
 
-HTML_HEADER = textwrap.dedent('''\
+HTML_HEADER = textwrap.dedent("""\
      <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
     <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en"><head>
     <meta name="GENERATOR" content="spec-url-check" />
@@ -81,16 +83,16 @@ HTML_HEADER = textwrap.dedent('''\
     </style>
     </head>
     <body>
-''')
+""")
 
-HTML_FOOTER = textwrap.dedent('''
+HTML_FOOTER = textwrap.dedent("""
     </body>
     </html>
-''')
+""")
 
 
 class UrlType(enum.IntEnum):
-    '''What the URL is used for in the spec file'''
+    """What the URL is used for in the spec file."""
     URL = enum.auto()
     SOURCE = enum.auto()
     PATCH = enum.auto()
@@ -104,7 +106,7 @@ URL_TYPE_NAME = {
 
 
 class UrlStatus(enum.IntEnum):
-    '''Whether the URL works'''
+    """Whether the URL works."""
     UNCHECKED = enum.auto()        # URL has not yet been checked
     UNSUPPORTED = enum.auto()      # scheme is not supported
     VALID = enum.auto()            # URL is A-OK
@@ -133,22 +135,21 @@ URL_STATUS_NAME = {
 
 @dataclass
 class UrlResult:
-    '''Base class for the package result.'''
+    """Base class for the package result."""
     name: str          # bare package name
     use: UrlType       # what the URL is for
     url: str           # syntactically-valid URL
     status: UrlStatus  # whether the URL works or not
 
 
-def get_urls_from_spec(spec_file: str) -> Set[str]:
-    '''Extracts the URL: fields defined in the given spec file.
+def get_urls_from_spec(spec_file: str) -> set[str]:
+    """Extracts the URL: fields defined in the given spec file.
 
     This returns zero or more syntactically-valid URLs in a set which de-dupes
     them.
-    '''
-    cmd = (r"rpmspec -q --queryformat '%%{URL}\n' -- %s" %
-           shlex.quote(spec_file))
-    debug("Running: %s", cmd)
+    """
+    cmd = f'rpmspec -q --queryformat "%{{URL}}\\n" -- {shlex.quote(spec_file)}'
+    debug('Running: %s', cmd)
     urls = set()
     with os.popen(cmd, 'r') as pipe:
         # There is one URL generated per package type
@@ -164,14 +165,14 @@ def get_urls_from_spec(spec_file: str) -> Set[str]:
     return urls
 
 
-def get_sources_from_spec(spec_file: str) -> Tuple[Set[str], Set[str]]:
-    '''Extracts the SourceN: and PatchN: lines defined in the given spec file.
+def get_sources_from_spec(spec_file: str) -> tuple[set[str], set[str]]:
+    """Extracts the SourceN: and PatchN: lines defined in the given spec file.
 
     This returns a tuple with a set of syntactically-valid source URLs and a
     set of syntactically-valid patch URLs.
-    '''
-    cmd = r"spectool -- %s" % shlex.quote(spec_file)
-    debug("Running: %s", cmd)
+    """
+    cmd = f'spectool -- {shlex.quote(spec_file)}'
+    debug('Running: %s', cmd)
     sources = set()
     patches = set()
     with os.popen(cmd, 'r') as pipe:
@@ -192,17 +193,17 @@ def get_sources_from_spec(spec_file: str) -> Tuple[Set[str], Set[str]]:
 
 
 class PackageProcessor:
-    '''Class to check the URLs in .spec files.'''
+    """Class to check the URLs in .spec files."""
 
     def __init__(self, spec_style: int):
         self.spec_style = spec_style
-        self.result = []  # type: List[UrlResult]
+        self.result = []  # type: list[UrlResult]
 
     def process_package(self, package_file: str):
-        '''Process the spec files to extract URLs.
+        """Process the spec files to extract URLs.
 
         This method must be thread safe.
-        '''
+        """
         spec_path = spectree.make_spec_path(package_file, self.spec_style)
         urls = get_urls_from_spec(spec_path)
         for url in urls:
@@ -214,8 +215,8 @@ class PackageProcessor:
         for url in patches:
             self.result.append(UrlResult(package_file, UrlType.PATCH, url, UrlStatus.UNCHECKED))
 
-    def update_url_status(self, statuses: Dict[str, UrlStatus]):
-        '''Update each url result with its status'''
+    def update_url_status(self, statuses: dict[str, UrlStatus]):
+        """Update each url result with its status."""
         for entry in self.result:
             if entry.url in statuses:
                 entry.status = statuses[entry.url]
@@ -231,37 +232,37 @@ class PackageProcessor:
                     # If the URL is not in the list, it means it's unsupported
                     entry.status = UrlStatus.UNSUPPORTED
 
-    def print_text_report(self, packagers: Dict[str, str]):
-        '''Print a text report after all URLs have been processed.'''
+    def print_text_report(self, packagers: dict[str, str]):
+        """Print a text report after all URLs have been processed."""
         # Sort on name, use, url
         self.result.sort(key=lambda x: f'{x.name}|{int(x.use)}|{x.url}')
         # The text report just dumps everything for all URLs
         for specurl in self.result:
             print(packagers[specurl.name], specurl.name, specurl.use, specurl.status, specurl.url)
 
-    def print_html_report(self, packagers: Dict[str, str]):
-        '''Print a HTML report after all URLs have been processed.'''
+    def print_html_report(self, packagers: dict[str, str]):
+        """Print a HTML report after all URLs have been processed."""
         # Sort on name, use, url
         self.result.sort(key=lambda x: f'{x.name}|{int(x.use)}|{x.url}')
         print(HTML_HEADER)
         print(f'<h1>Spec URL Check Report as of {time.strftime("%Y-%m-%d")}</h1>')
-        print(textwrap.dedent(f'''
+        print(textwrap.dedent(f"""
             {len(self.result)} URLs were checked<br />
             {len([x for x in self.result
                     if x.status != UrlStatus.VALID])} URLs were bad<br />
             {len([x for x in self.result
                     if URL_MATCH_RE.match(x.url).group(1).lower()
-                       not in ('https', 'ftps')])} URLs were insecure<br />'''))
+                       not in ('https', 'ftps')])} URLs were insecure<br />"""))
 
-        print(textwrap.dedent('''
+        print(textwrap.dedent("""
             <br />
             <a href="#bad_urls">Bad URLs</a><br />
-            <a href="#insecure_urls">Insecure URLs</a><br />'''))
+            <a href="#insecure_urls">Insecure URLs</a><br />"""))
 
         # Build a hash table of project URLs for quick access
         home_pages = {entry.name: entry.url for entry in self.result if entry.use == UrlType.URL}
 
-        print(textwrap.dedent(r'''
+        print(textwrap.dedent(r"""
             <a id="bad_urls"></a>
             <h2>Spec files with bad URLs</h2>
             <!-- Extract the data in this table in CSV format with the command:
@@ -275,24 +276,20 @@ class PackageProcessor:
                   <th title="What went wrong when checking the URL" class="nowrap">Error</th>
                   <th title="Links to information sources regarding this package" class="shaded nowrap">Info</th>
                   <th title="The URL that was checked">URL</th>
-                </tr>'''))
+                </tr>"""))
 
         for specurl in self.result:
 
             if specurl.status == UrlStatus.VALID:
                 continue
 
-            if URL_MATCH_RE.match(specurl.url).group(1).lower() != 'https':
-                https_link = f'<a href="https{escape(specurl.url[specurl.url.find(":"):])}">https</a>'
-            else:
-                https_link = ''
+            https_link = (f'<a href="https{escape(specurl.url[specurl.url.find(":"):])}">https</a>'
+                          if URL_MATCH_RE.match(specurl.url).group(1).lower() != 'https' else '')
 
-            if specurl.use != UrlType.URL and specurl.name in home_pages:
-                project_link = f'<a href="{escape(home_pages[specurl.name])}">home</a>'
-            else:
-                project_link = ''
+            project_link = (f'<a href="{escape(home_pages[specurl.name])}">home</a>'
+                            if specurl.use != UrlType.URL and specurl.name in home_pages else '')
 
-            print(textwrap.dedent(f'''
+            print(textwrap.dedent(f"""
                 <tr>
                   <td class="shaded nowrap">{escape(packagers[specurl.name])}</td>
                   <td class="nowrap">{escape(specurl.name)}</td>
@@ -307,10 +304,10 @@ class PackageProcessor:
                       {https_link}
                   </td>
                   <td><a href="{escape(specurl.url)}">{escape(specurl.url)}</a></td>
-                </tr>'''))
+                </tr>"""))
         print('</table>')
 
-        print(textwrap.dedent(r'''
+        print(textwrap.dedent(r"""
             <a id="insecure_urls"></a>
             <h2>Spec files with insecure URLs</h2>
             <!-- Extract the data in this table in CSV format with the command:
@@ -323,19 +320,17 @@ class PackageProcessor:
                   <th title="Whether the URL was used for the package home page, a source or a patch" class="shaded nowrap">URL Use</th>
                   <th title="Links to information sources regarding this package" class="shaded nowrap">Info</th>
                   <th title="The URL in question">URL</th>
-                </tr>'''))
+                </tr>"""))
 
         for specurl in self.result:
 
             if URL_MATCH_RE.match(specurl.url).group(1).lower() in frozenset(('https', 'ftps')):
                 continue
 
-            if specurl.use != UrlType.URL and specurl.name in home_pages:
-                project_link = f'<a href="{escape(home_pages[specurl.name])}">home</a>'
-            else:
-                project_link = ''
+            project_link = (f'<a href="{escape(home_pages[specurl.name])}">home</a>'
+                            if specurl.use != UrlType.URL and specurl.name in home_pages else '')
 
-            print(textwrap.dedent(f'''
+            print(textwrap.dedent(f"""
                 <tr>
                   <td class="shaded nowrap">{escape(packagers[specurl.name])}</td>
                   <td class="nowrap">{escape(specurl.name)}</td>
@@ -345,14 +340,14 @@ class PackageProcessor:
                     <a href="https{escape(specurl.url[specurl.url.find(":"):])}">https</a>
                   </td>
                   <td><a href="{escape(specurl.url)}">{escape(specurl.url)}</a></td>
-                </tr>'''))
+                </tr>"""))
         print('</table>')
 
         print(HTML_FOOTER)
 
 
-def process_packages(proc: PackageProcessor, spec_packages: List[str]):
-    '''Process the given packages with thread parallelism.'''
+def process_packages(proc: PackageProcessor, spec_packages: list[str]):
+    """Process the given packages with thread parallelism."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=PARALLEL_SPEC_THREADS) as executor:
         futures = (executor.submit(proc.process_package, package) for package in spec_packages)
         for n, future in enumerate(concurrent.futures.as_completed(futures)):
@@ -362,10 +357,9 @@ def process_packages(proc: PackageProcessor, spec_packages: List[str]):
             future.result()  # call this to reveal any exceptions
 
 
-def process_urls(checker: Callable, batches: List[Set[str]],
-                 redirect: bool) -> Dict[str, UrlStatus]:
-    '''Process the given packages in batches with thread parallelism.'''
-
+def process_urls(checker: Callable, batches: list[set[str]],
+                 redirect: bool) -> dict[str, UrlStatus]:
+    """Process the given packages in batches with thread parallelism."""
     total_urls = sum(len(b) for b in batches)
     url_results = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=PARALLEL_URL_THREADS) as executor:
@@ -381,49 +375,46 @@ def process_urls(checker: Callable, batches: List[Set[str]],
 
 
 def status_from_response_code(response_code: int, url: str) -> UrlStatus:
-    '''Return a URL status give the URL and response code
+    """Return a URL status give the URL and response code.
 
     Response codes for different URL schemes use different namespaces, and
     they're sorted out here.
-    '''
-    status = UrlStatus.UNSUPPORTED
+    """
     scheme = URL_MATCH_RE.match(url).group(1).lower()
     if scheme in frozenset(('http', 'https')):
         if 200 <= response_code < 300:
-            status = UrlStatus.VALID
-        elif response_code in frozenset((423, 429)):
+            return UrlStatus.VALID
+        if response_code in frozenset((423, 429)):
             # Rate limiting response
-            status = UrlStatus.TEMPORARY_ERR
-        elif response_code in frozenset((401, 402, 403)):
-            status = UrlStatus.AUTHENTICATE
-        elif 300 <= response_code < 400:
-            status = UrlStatus.REDIRECT
-        elif 400 <= response_code < 500:
-            status = UrlStatus.NOT_FOUND
-        elif 500 <= response_code < 600:
-            status = UrlStatus.TEMPORARY_ERR
-        else:
-            error('Unknown HTTP error reason for %s', url)
+            return UrlStatus.TEMPORARY_ERR
+        if response_code in frozenset((401, 402, 403)):
+            return UrlStatus.AUTHENTICATE
+        if 300 <= response_code < 400:
+            return UrlStatus.REDIRECT
+        if 400 <= response_code < 500:
+            return UrlStatus.NOT_FOUND
+        if 500 <= response_code < 600:
+            return UrlStatus.TEMPORARY_ERR
+        error('Unknown HTTP error reason for %s', url)
     elif scheme in frozenset(('ftp', 'ftps')):
         if response_code in frozenset((250, 257, 350)):
-            status = UrlStatus.VALID
-        elif response_code in frozenset((530, 430)):
-            status = UrlStatus.AUTHENTICATE
-        elif response_code in frozenset((221, 230)):
+            return UrlStatus.VALID
+        if response_code in frozenset((530, 430)):
+            return UrlStatus.AUTHENTICATE
+        if response_code in frozenset((221, 230)):
             # These can happen if the connection is terminated
             # by timeout before the end
-            status = UrlStatus.TEMPORARY_ERR
-        elif 400 <= response_code < 500:
-            status = UrlStatus.TEMPORARY_ERR
-        elif 500 <= response_code < 600:
-            status = UrlStatus.NOT_FOUND
-        else:
-            error('Unknown FTP error reason for %s', url)
-    return status
+            return UrlStatus.TEMPORARY_ERR
+        if 400 <= response_code < 500:
+            return UrlStatus.TEMPORARY_ERR
+        if 500 <= response_code < 600:
+            return UrlStatus.NOT_FOUND
+        error('Unknown FTP error reason for %s', url)
+    return UrlStatus.UNSUPPORTED
 
 
 def get_curl_timeout_factor() -> int:
-    '''Determine what units curl returns for timeouts'''
+    """Determine what units curl returns for timeouts."""
     cmd = 'curl -V'
     with os.popen(cmd, 'r') as pipe:
         line = pipe.readline()
@@ -436,12 +427,13 @@ def get_curl_timeout_factor() -> int:
     return 1000000
 
 
-def check_url_batch(batch: Set[str], redirect: bool) -> Dict[str, UrlStatus]:
-    '''Check a batch of URLs
+def check_url_batch(batch: set[str], redirect: bool) -> dict[str, UrlStatus]:
+    """Check a batch of URLs.
 
     redirect - True to follow redirects
 
-    This must be thread safe.'''
+    This must be thread safe.
+    """
     results = {}
     debug(f'checking batch of {len(batch)} URLs')
 
@@ -459,8 +451,13 @@ def check_url_batch(batch: Set[str], redirect: bool) -> Dict[str, UrlStatus]:
     # using threads instead.
     # The ||true at the end guarantees a 0 exit code, even if some URLs failed.
     # url_effective is only used for debugging
-    cmd = f"curl --ssl -s -m {timeout} -I {'-L --max-redirs 10' if redirect else ''} --ftp-method singlecwd --write-out '%{{response_code}} %{{ssl_verify_result}} %{{time_connect}} %{{time_total}} %{{num_connects}} %{{url_effective}}\\n' -o /dev/null {' -o /dev/null '.join(shlex.quote(url) for url in urls)} || true"
-    debug("Running: %s", cmd)
+    cmd = ('curl --ssl -s --ftp-method singlecwd '
+           f"-m {timeout} -I {'-L --max-redirs 10' if redirect else ''} "
+           '--write-out "%{response_code} %{ssl_verify_result} %{time_connect} '
+           '%{time_total} %{num_connects} %{url_effective}\\n" '
+           f"-o /dev/null {' -o /dev/null '.join(shlex.quote(url) for url in urls)} "
+           '|| true')
+    debug('Running: %s', cmd)
     with os.popen(cmd, 'r') as pipe:
         while line := pipe.readline():
             debug('RESULTS: %s', line.strip())
@@ -478,7 +475,7 @@ def check_url_batch(batch: Set[str], redirect: bool) -> Dict[str, UrlStatus]:
             # an error of some sort.
             # TODO: This is fixed in curl 7.75.0 with the addition of %{exitcode}
             status = UrlStatus.UNSUPPORTED
-            if time_total >= timeout*1000000*.99:
+            if time_total >= timeout * 1000000 * 0.99:
                 # Total time is no more than 1% less than the timeout
                 # This trumps everything else, because we can't trust the
                 # codes if curl aborts in the middle of a transfer
@@ -502,12 +499,13 @@ def check_url_batch(batch: Set[str], redirect: bool) -> Dict[str, UrlStatus]:
     return results
 
 
-def check_urls(urls: Iterable[str], redirect: bool = False) -> Dict[str, UrlStatus]:
-    '''Check each URL to see if it's valid.
+def check_urls(urls: Iterable[str], redirect: bool = False) -> dict[str, UrlStatus]:
+    """Check each URL to see if it's valid.
 
     redirect - True to follow redirects
 
-    Do this in parallel for speed.'''
+    Do this in parallel for speed.
+    """
     all_urls = []
     for url in urls:
         if not (m := URL_MATCH_RE.match(url)):
@@ -523,8 +521,8 @@ def check_urls(urls: Iterable[str], redirect: bool = False) -> Dict[str, UrlStat
     del urls
 
     # Set the batch size to correspond to the number of URLs and threads
-    batch_size = (URL_BATCHES if len(all_urls) >= URL_BATCHES*PARALLEL_URL_THREADS
-                  else max(int(len(all_urls)/PARALLEL_URL_THREADS), URL_BATCHES_MIN))
+    batch_size = (URL_BATCHES if len(all_urls) >= URL_BATCHES * PARALLEL_URL_THREADS
+                  else max(int(len(all_urls) / PARALLEL_URL_THREADS), URL_BATCHES_MIN))
 
     # Sorting provides the nice property that requests to the same server
     # would be batched together and could take advantage of a persistent
@@ -552,7 +550,8 @@ def check_urls(urls: Iterable[str], redirect: bool = False) -> Dict[str, UrlStat
     return process_urls(check_url_batch, batches, redirect)
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
+    """CLI entry point to check URLs in spec files."""
     logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
 
     parser = argparse.ArgumentParser(
@@ -607,17 +606,17 @@ def main(argv: Optional[List[str]] = None) -> int:
     if not args.skip_url_check:
         info('Starting checking %d URLs', len(proc.result))
         # De-dupe the URLs then check them all
-        checked_urls = check_urls(set(entry.url for entry in proc.result))
+        checked_urls = check_urls({entry.url for entry in proc.result})
 
         # Check REDIRECT entries again, but redirecting this time.
-        recheck_urls = set(u for u, s in checked_urls.items() if s == UrlStatus.REDIRECT)
+        recheck_urls = {u for u, s in checked_urls.items() if s == UrlStatus.REDIRECT}
         if recheck_urls:
             info('Starting checking %d redirected URLs', len(recheck_urls))
             rechecked_urls = check_urls(recheck_urls, redirect=True)
             checked_urls = {**checked_urls, **rechecked_urls}
 
         # Check TEMPORARY_ERR entries again.
-        recheck_urls = set(u for u, s in checked_urls.items() if s == UrlStatus.TEMPORARY_ERR)
+        recheck_urls = {u for u, s in checked_urls.items() if s == UrlStatus.TEMPORARY_ERR}
         if recheck_urls:
             info('Starting rechecking %d temporary error URLs', len(recheck_urls))
             rechecked_urls = check_urls(recheck_urls, redirect=True)

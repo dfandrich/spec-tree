@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-'''Show packages whose spec files specify an RPM version that does not exist
+"""Show packages whose spec files specify an RPM version that does not exist.
 
 Copyright © 2014–2023 Daniel Fandrich.
 This program is free software; you can redistribute it and/or modify
@@ -9,9 +9,11 @@ Some rights reserved. See COPYING.
 Usage: spec-rpm-mismatch >report.html 2>errors.log
  within directory prepared by checkout-all-specs
 
-TODO:
+Todo:
     - fix warnings from .spec files with weird macros calling external programs
-'''
+"""
+
+from __future__ import annotations
 
 import argparse
 import concurrent.futures
@@ -28,7 +30,7 @@ import urllib.parse
 from dataclasses import dataclass
 from html import escape, unescape
 from logging import debug, error, fatal, info, warning
-from typing import Dict, List, Optional, Set, Tuple, Type, TypeVar
+from typing import Optional, Type, TypeVar
 
 from spectree import spectree
 
@@ -47,7 +49,7 @@ SRPM_SECTION = 'release'
 
 SVNWEB_URL_TEMPLATE = 'https://svnweb.mageia.org/packages/{version}/{package}/current/SPECS/{package}.spec'
 
-HTML_HEADER = textwrap.dedent('''\
+HTML_HEADER = textwrap.dedent("""\
      <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
     <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en"><head>
     <meta name="GENERATOR" content="spec-rpm-mismatch" />
@@ -64,19 +66,19 @@ HTML_HEADER = textwrap.dedent('''\
     </style>
     </head>
     <body>
-''')
+""")
 
-HTML_FOOTER = textwrap.dedent('''
+HTML_FOOTER = textwrap.dedent("""
     </body>
     </html>
-''')
+""")
 
 
 PACKAGE_RE = re.compile(r'^(.*)(-[\w\.+~^]+-[\w\.]+\.mga(\d+))(\.\w+)?\.src\.rpm$')
 
 
 def package_name(rpm: str) -> str:
-    'Determine package name from RPM file name'
+    """Determine package name from RPM file name."""
     match = PACKAGE_RE.match(rpm)
     if match:
         return match.group(1)
@@ -84,7 +86,7 @@ def package_name(rpm: str) -> str:
 
 
 def rpm_base_name(rpm: str) -> str:
-    'Determine name + version + release from RPM file name'
+    """Determine name + version + release from RPM file name."""
     match = PACKAGE_RE.match(rpm)
     if match:
         return match.group(1) + match.group(2)
@@ -94,40 +96,41 @@ def rpm_base_name(rpm: str) -> str:
 PACKAGE_BASE_RE = re.compile(r'^(.*)(-[\w\.+]+)-([\w\.]+)\.mga(\d+)')
 
 
-def rpm_versions(rpm_base: str) -> Tuple[str, str, str, str]:
-    '''Determine name, version, release from an RPM base name
+def rpm_versions(rpm_base: str) -> tuple[str, str, str, str]:
+    """Determine name, version, release from an RPM base name.
 
     Return: (name, version, release, distrib)
-    '''
+    """
     match = PACKAGE_BASE_RE.match(rpm_base)
     if match:
         return (match.group(1), match.group(2), match.group(3), match.group(4))
     return ('', '', '', '')
 
 
-def retrieve_dir_contents(url: str) -> List[str]:
-    'Return a directory listing of the remote URL'
+def retrieve_dir_contents(url: str) -> list[str]:
+    """Return a directory listing of the remote URL."""
     u = urllib.parse.urlparse(url)
     if u.scheme in ('ftp', 'ftps'):
         return retrieve_dir_contents_curl(url)
 
+    # Starting curl 8.8.0, this method can also handle file: URLs
     if u.scheme in ('http', 'https'):
         return retrieve_dir_contents_http(url)
 
     if u.scheme == 'file' and u.netloc in ('localhost', ''):
         return os.listdir(u.path)
 
-    raise RuntimeError('SRPM URL type %s not supported' % url)
+    raise RuntimeError(f'SRPM URL type {url} not supported')
 
 
-def retrieve_dir_contents_curl(url: str) -> List[str]:
-    '''Return a directory listing of the remote ftp URL
+def retrieve_dir_contents_curl(url: str) -> list[str]:
+    """Return a directory listing of the remote ftp URL.
 
     ftp allows a trivially-parsed directory listing.
-    '''
+    """
     listing = []
     cmd = 'curl -f -s -l --ftp-method SINGLECWD --ssl -- ' + shlex.quote(url)
-    info("Running: %s", cmd)
+    info('Running: %s', cmd)
     with os.popen(cmd, 'r') as pipe:
         while line := pipe.readline():
             if line := line.strip():
@@ -138,17 +141,17 @@ def retrieve_dir_contents_curl(url: str) -> List[str]:
 
 
 class HTMLDirParser(html.parser.HTMLParser):
-    '''Parse the HTML resulting from an HTTP directory request.
+    """Parse the HTML resulting from an HTTP directory request.
 
     This works with the output from Apache, IIS, lighttpd and nginx. The first
     link in the links attribute is the parent directory.
     Some servers support returning directories in structured formats (e.g., XML
     or JSON) but it seems to be controlled server-side and the client doesn't
     appear to be able to influence it.
-    '''
+    """
 
     class TableState(enum.IntEnum):
-        '''States for the HTML parser.'''
+        """States for the HTML parser."""
         NONE = enum.auto()
         TR = enum.auto()
         TH = enum.auto()
@@ -159,9 +162,11 @@ class HTMLDirParser(html.parser.HTMLParser):
         self.links = []
 
     def error(self, message: str):
-        warning("%s", message)
+        """Log an error message."""
+        warning('%s', message)
 
-    def handle_starttag(self, tag, attrs):
+    def handle_starttag(self, tag: str, attrs):
+        """Called when an HTML tag is started."""
         if tag == 'th':
             self.table_state = self.TableState.TH
 
@@ -180,12 +185,12 @@ class HTMLDirParser(html.parser.HTMLParser):
         # ignore all other tags
 
 
-def retrieve_dir_contents_http(url: str) -> List[str]:
-    'Return an HTML directory listing via HTTP/S'
+def retrieve_dir_contents_http(url: str) -> list[str]:
+    """Return an HTML directory listing via HTTP/S."""
     htmlp = HTMLDirParser()
 
     cmd = 'curl -f -s --compressed -- ' + shlex.quote(url)
-    info("Running: %s", cmd)
+    info('Running: %s', cmd)
     with os.popen(cmd, 'r') as pipe:
         while data := pipe.read(1024):
             htmlp.feed(data)
@@ -197,16 +202,14 @@ def retrieve_dir_contents_http(url: str) -> List[str]:
     links = htmlp.links[1:]
 
     # Filter out all other directories
-    links = [link for link in links if not link.endswith('/') and not link.startswith('?')]
-
-    return links
+    return [link for link in links if not link.endswith('/') and not link.startswith('?')]
 
 
-def retrieve_all_packages(srpm_source: str) -> Tuple[Set[str], Dict[str, str]]:
-    '''Retrieve a list of all packages available in the distribution.
+def retrieve_all_packages(srpm_source: str) -> tuple[set[str], dict[str, str]]:
+    """Retrieve a list of all packages available in the distribution.
 
     This could be changed to use the urpmi synthesis files instead.
-    '''
+    """
     all_rpms = set()
     all_packages = {}
 
@@ -239,15 +242,14 @@ def retrieve_all_packages(srpm_source: str) -> Tuple[Set[str], Dict[str, str]]:
 
 
 def get_srpm_name_stub_from_spec(spec_file: str, release: str) -> str:
-    '''Determine the start of the SRPM name created by the given spec file.
+    """Determine the start of the SRPM name created by the given spec file.
 
     This returns a name like 'foo-1.23-4'
-    '''
+    """
     # %dist includes the mgaX version of the current machine by default, which
     # might not match that of release, so construct the version ourselves.
-    cmd = 'rpmspec -q -D"dist ."%s --queryformat "%%{NAME}-%%{VERSION}-%%{RELEASE}\n" -- %s' % \
-          (shlex.quote(release), shlex.quote(spec_file))
-    debug("Running: %s", cmd)
+    cmd = f'rpmspec -q -D"dist ."{shlex.quote(release)} --queryformat "%{{NAME}}-%{{VERSION}}-%{{RELEASE}}\\n" -- {shlex.quote(spec_file)}'
+    debug('Running: %s', cmd)
     pipe = os.popen(cmd, 'r')
     # There may be many RPMs generated, but the first one is the one with the SRPM
     line = pipe.readline()
@@ -262,7 +264,7 @@ def get_srpm_name_stub_from_spec(spec_file: str, release: str) -> str:
 
 @dataclass
 class PackageResult:
-    '''Base class for the package result.'''
+    """Base class for the package result."""
     name: str  # bare package name
 
 
@@ -271,35 +273,35 @@ TypePackageResult = TypeVar('TypePackageResult', bound=PackageResult)
 
 @dataclass
 class NoSrpmFile(PackageResult):
-    '''Packages with no associated SRPM file on the server.'''
+    """Packages with no associated SRPM file on the server."""
 
 
 @dataclass
 class ParseError(PackageResult):
-    '''Packages whose .spec file could not be properly parsed.'''
+    """Packages whose .spec file could not be properly parsed."""
 
 
 @dataclass
 class VersionMatch(PackageResult):
-    '''Packages whose .spec file matches the SRPM file on the server.'''
+    """Packages whose .spec file matches the SRPM file on the server."""
     srpm_name: str  # versioned name of srpm file
 
 
 @dataclass
 class VersionMismatch(PackageResult):
-    '''Packages whose .spec file does not match the SRPM file on the server.'''
+    """Packages whose .spec file does not match the SRPM file on the server."""
     base_name: str  # versioned name of srpm file on the server
     srpm_name: str  # versioned name of srpm file in the .spec file
 
 
 class ResultCollection:
-    '''Class holding the result of all package processing.'''
+    """Class holding the result of all package processing."""
     def __init__(self):
-        self.result = []  # type: List[PackageResult]
+        self.result = []  # type: list[PackageResult]
         self.sorted = True
 
     def add(self, package: PackageResult):
-        '''Add a new package to the collection.'''
+        """Add a new package to the collection."""
         self.result.append(package)
         self.sorted = False
 
@@ -308,20 +310,20 @@ class ResultCollection:
         self.sorted = True
 
     def has_matching(self, result: Type[TypePackageResult]) -> bool:
-        '''Returns True if any matching package is found.'''
+        """Returns True if any matching package is found."""
         return any(True for x in self.result if isinstance(x, result))
 
-    def matching(self, result: Type[TypePackageResult]) -> List[TypePackageResult]:
-        '''Returns list of matching packages in sorted order.'''
+    def matching(self, result: Type[TypePackageResult]) -> list[TypePackageResult]:
+        """Returns list of matching packages in sorted order."""
         if not self.sorted:
             self._sort()
         return [x for x in self.result if isinstance(x, result)]
 
 
 class PackageProcessor:
-    '''Class to analyze the versions of packages in .spec files.'''
+    """Class to analyze the versions of packages in .spec files."""
 
-    def __init__(self, all_rpms: Set[str], all_packages: Dict[str, str], spec_style: int,
+    def __init__(self, all_rpms: set[str], all_packages: dict[str, str], spec_style: int,
                  release: str):
         self.all_rpms = all_rpms
         self.all_packages = all_packages
@@ -330,10 +332,10 @@ class PackageProcessor:
         self.result = ResultCollection()
 
     def process_package(self, package_file: str):
-        '''Process the given package.
+        """Process the given package.
 
         This method must be reentrant.
-        '''
+        """
         spec_path = spectree.make_spec_path(package_file, self.spec_style)
         package = os.path.basename(package_file)
         if package not in self.all_packages:
@@ -357,8 +359,8 @@ class PackageProcessor:
             return
         self.result.add(VersionMatch(package, canon_srpm_name))
 
-    def print_text_report(self, packagers: Dict[str, str]):
-        '''Print a text report after all packages have been processed.'''
+    def print_text_report(self, packagers: dict[str, str]):
+        """Print a text report after all packages have been processed."""
         print()
         print('Packages with no associated SRPM file on the server')
         for package in self.result.matching(NoSrpmFile):
@@ -377,14 +379,13 @@ class PackageProcessor:
         print()
         print('Version match on server')
         if len(self.result.matching(VersionMatch)) > 300:
-            print('%d spec files have matching RPMs (not shown)' %
-                  len(self.result.matching(VersionMatch)))
+            print(f'{len(self.result.matching(VersionMatch))} spec files have matching RPMs (not shown)')
         else:
             for package in self.result.matching(VersionMatch):
                 print(packagers[package.name], package.srpm_name)
 
-    def print_html_report(self, packagers: Dict[str, str]):
-        '''Print an HTML report after all packages have been processed.'''
+    def print_html_report(self, packagers: dict[str, str]):
+        """Print an HTML report after all packages have been processed."""
         print(HTML_HEADER)
         print(f'<h1>{SRPM_VERSION} ({self.release}) Spec Build Report '
               f'as of {time.strftime("%Y-%m-%d")}</h1>')
@@ -401,7 +402,7 @@ class PackageProcessor:
             print('<a href="#match_version">Matching RPM versions</a><br />')
 
         if self.result.has_matching(NoSrpmFile):
-            print(textwrap.dedent(f'''
+            print(textwrap.dedent(f"""
                 <a id="no_rpm"></a>
                 <h2>Spec files with no matching RPM of any version</h2>
 
@@ -419,18 +420,18 @@ class PackageProcessor:
                   <th>Maintainer</th>
                   <th>Package</th>
                 </tr>
-            '''))
+            """))
             for package in self.result.matching(NoSrpmFile):
                 url = SVNWEB_URL_TEMPLATE.format(version=SRPM_VERSION, package=escape(package.name))
-                print(textwrap.dedent(f'''
+                print(textwrap.dedent(f"""
                     <tr>
                       <td>{escape(packagers[package.name])}</td>
                       <td><a href="{url}">{escape(package.name)}</a></td>
                     </tr>
-                '''))
+                """))
             print('</table>')
 
-        print(textwrap.dedent(f'''
+        print(textwrap.dedent(f"""
             <a id="wrong_version"></a>
             <h2>Wrong RPM version</h2>
 
@@ -455,7 +456,7 @@ class PackageProcessor:
               <th>RPM version</th>
               <th>Spec version</th>
             </tr>
-         '''))
+         """))
         for package in self.result.matching(VersionMismatch):
             _, have_ver, _, have_distrib = rpm_versions(package.base_name)
             _, should_have_ver, _, should_have_distrib = rpm_versions(package.srpm_name)
@@ -465,17 +466,17 @@ class PackageProcessor:
             elif have_ver == should_have_ver:
                 match_class = ' class="release"'
             url = SVNWEB_URL_TEMPLATE.format(version=SRPM_VERSION, package=escape(package.name))
-            print(textwrap.dedent(f'''
+            print(textwrap.dedent(f"""
                     <tr{match_class}>
                       <td>{escape(packagers[package.name])}</td>
                       <td>{escape(package.base_name)}</td>
                       <td><a href="{url}">{escape(package.srpm_name)}</a></td>
                     </tr>
-                '''))
+                """))
         print('</table>')
 
         if self.result.has_matching(ParseError):
-            print(textwrap.dedent(f'''
+            print(textwrap.dedent(f"""
                 <a id="errors"></a>
                 <h2>Could not determine version number from these packages</h2>
 
@@ -494,29 +495,28 @@ class PackageProcessor:
                 <tr>
                   <th>Package</th>
                 </tr>
-            '''))
+            """))
             for package in self.result.matching(ParseError):
                 url = SVNWEB_URL_TEMPLATE.format(version=SRPM_VERSION, package=escape(package.name))
-                print(textwrap.dedent(f'''
+                print(textwrap.dedent(f"""
                     <tr>
                       <td><a href="{url}">{escape(package.name)}</a></td>
                     </tr>
-                '''))
+                """))
             print('</table>')
 
         if self.result.has_matching(VersionMatch):
-            print('''
+            print("""
             <a id="match_version"></a>
             <h2>Spec &amp; RPM versions match</h2>
 
             The version of the SRPM matches the version in the .spec file. This is
             the desired state, so these are the only packages without error.
-            ''')
+            """)
             if len(self.result.matching(VersionMatch)) > 300:
-                print('<p>%d spec files have matching RPMs (not shown)</p>' %
-                      len(self.result.matching(VersionMatch)))
+                print(f'<p>{len(self.result.matching(VersionMatch))} spec files have matching RPMs (not shown)</p>')
             else:
-                print(textwrap.dedent(f'''
+                print(textwrap.dedent(f"""
                     <p>({len(self.result.matching(VersionMatch))} packages)</p>
                     <!-- Extract the data in this table in CSV format with the command:
                          xmlstarlet sel -N x=http://www.w3.org/1999/xhtml -t -m '//x:table[@id="matchingversions"]/x:tr[x:td]' -v 'x:td[2]' -o ',' -v 'x:td[1]' -nl
@@ -526,21 +526,21 @@ class PackageProcessor:
                       <th>Maintainer</th>
                       <th>Spec/RPM version</th>
                     </tr>
-                '''))
+                """))
                 for package in self.result.matching(VersionMatch):
-                    print(textwrap.dedent(f'''
+                    print(textwrap.dedent(f"""
                         <tr>
                           <td>{escape(packagers[package.name])}</td>
                           <td>{escape(package.srpm_name)}</td>
                         </tr>
-                    '''))
+                    """))
                 print('</table>')
 
         print(HTML_FOOTER)
 
 
-def process_packages(proc: PackageProcessor, spec_packages: List[str]):
-    '''Process the given packages with thread parallelism.'''
+def process_packages(proc: PackageProcessor, spec_packages: list[str]):
+    """Process the given packages with thread parallelism."""
     with concurrent.futures.ThreadPoolExecutor(max_workers=PARALLEL_THREADS) as executor:
         futures = (executor.submit(proc.process_package, package) for package in spec_packages)
         for n, future in enumerate(concurrent.futures.as_completed(futures)):
@@ -551,15 +551,14 @@ def process_packages(proc: PackageProcessor, spec_packages: List[str]):
 
 
 class MgaReleaseTagAction(argparse.Action):
-    '''Append the option value to "mga" if numeric, otherwise verbatim.'''
+    """Append the option value to "mga" if numeric, otherwise verbatim."""
     def __call__(self, parser, namespace, values, option_string=None):
-        if values.isdigit():
-            setattr(namespace, self.dest, 'mga' + values)
-        else:
-            setattr(namespace, self.dest, values)
+        """Add a prefix to the release number if missing."""
+        setattr(namespace, self.dest, ('mga' if values.isdigit() else '') + values)
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
+    """CLI entry point to show packages whose spec files that have no RPM."""
     logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(message)s')
 
     parser = argparse.ArgumentParser(

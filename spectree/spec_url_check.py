@@ -251,8 +251,9 @@ class PackageProcessor:
             {len([x for x in self.result
                     if x.status != UrlStatus.VALID])} URLs were bad<br />
             {len([x for x in self.result
-                    if URL_MATCH_RE.match(x.url).group(1).lower()
-                       not in ('https', 'ftps')])} URLs were insecure<br />"""))
+                    if (m := URL_MATCH_RE.match(x.url))
+                        and m.group(1).lower() not in ('https', 'ftps')
+                 ])} URLs were insecure<br />"""))
 
         print(textwrap.dedent("""
             <br />
@@ -284,7 +285,9 @@ class PackageProcessor:
                 continue
 
             https_link = (f'<a href="https{escape(specurl.url[specurl.url.find(":"):])}">https</a>'
-                          if URL_MATCH_RE.match(specurl.url).group(1).lower() != 'https' else '')
+                          if (m := URL_MATCH_RE.match(specurl.url))
+                          and m.group(1).lower() != 'https'
+                          else '')
 
             project_link = (f'<a href="{escape(home_pages[specurl.name])}">home</a>'
                             if specurl.use != UrlType.URL and specurl.name in home_pages else '')
@@ -323,8 +326,8 @@ class PackageProcessor:
                 </tr>"""))
 
         for specurl in self.result:
-
-            if URL_MATCH_RE.match(specurl.url).group(1).lower() in frozenset(('https', 'ftps')):
+            if ((m := URL_MATCH_RE.match(specurl.url))
+                    and m.group(1).lower() in frozenset(('https', 'ftps'))):
                 continue
 
             project_link = (f'<a href="{escape(home_pages[specurl.name])}">home</a>'
@@ -380,7 +383,7 @@ def status_from_response_code(response_code: int, url: str) -> UrlStatus:
     Response codes for different URL schemes use different namespaces, and
     they're sorted out here.
     """
-    scheme = URL_MATCH_RE.match(url).group(1).lower()
+    scheme = m.group(1).lower() if (m := URL_MATCH_RE.match(url)) else ''
     if scheme in frozenset(('http', 'https')):
         if 200 <= response_code < 300:
             return UrlStatus.VALID

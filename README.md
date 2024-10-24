@@ -146,9 +146,9 @@ perform a case-insensitive search:
 
 ### match-spec-maintainer
 
-`match-spec-maintainer` lists all packages whose spec files match a perl-style
-regular expression (like `findspec`) and lists the package names along with
-their maintainer's user ID in a tab-separated format:
+`match-spec-maintainer` lists all packages whose spec file contents match a
+perl-style regular expression (like `findspec`) and lists the package names
+along with their maintainer's user ID in a tab-separated format:
 
     match-spec-maintainer 'python2|py2'
 

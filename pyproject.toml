@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "spec-tree"
 description = "Tools to manage a large set of RPM .spec files"
-version = "2023.1.1dev"
+version = "2025.1"
 readme = "README.md"
 authors = [{name = "Dan Fandrich", email = "dan@coneharvesters.com"}]
 license = {text = "GPLv2+"}
@@ -14,7 +14,7 @@ classifiers = [
     "License :: OSI Approved :: GNU General Public License v2 or later (GPLv2+)",
     "Programming Language :: Python :: 3",
     "Operating System :: POSIX :: Linux",
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Natural Language :: English",
     "Topic :: System :: Archiving :: Packaging",

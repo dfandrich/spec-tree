@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42"]
+requires = ["setuptools>=65"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -77,9 +77,11 @@ include-package-data = false
 
 # flake8-pyproject must be installed for flake8 to use these settings
 [tool.flake8]
-ignore = ["D107", "D204", "E501", "PAR101", "PAR103", "PLU002", "SFS301", "W503"]
+ignore = ["D107", "D204", "PAR101", "PAR103", "PLU002", "SFS301", "W503"]
 docstring-convention = "google"
 blanks-before-imports = 1
+# TODO: bring this down
+max-line-length = 206
 
 [tool.flake8.known-modules]
 spec-tree = ["spectree"]

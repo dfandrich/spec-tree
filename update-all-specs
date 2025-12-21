@@ -25,6 +25,11 @@ if [[ "$1" = "--update-only" ]] ; then
     UPDATE_ONLY=1
     shift
 fi
+SKIP_UPDATE=
+if [[ "$1" = "--skip-update" ]] ; then
+    SKIP_UPDATE=1
+    shift
+fi
 if [[ "$1" = "--max-delete" ]] ; then
     MAX_DELETE_FAILSAFE="$2"
     shift 2
@@ -90,6 +95,6 @@ checkout_new_specs () {
 }
 
 test -z "$UPDATE_ONLY" && { echo Deleting obsolete directories; delete_obsolete_specs; }
-echo Updating existing directories; update_specs
+test -z "$SKIP_UPDATE" && { echo Updating existing directories; update_specs; }
 test -z "$UPDATE_ONLY" && { echo Checking out new directories; checkout_new_specs; }
 echo Done

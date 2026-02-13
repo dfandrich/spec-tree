@@ -205,15 +205,16 @@ class PackageProcessor:
         This method must be thread safe.
         """
         spec_path = spectree.make_spec_path(package_file, self.spec_style)
+        package_name = os.path.basename(package_file)
         urls = get_urls_from_spec(spec_path)
         for url in urls:
-            self.result.append(UrlResult(package_file, UrlType.URL, url, UrlStatus.UNCHECKED))
+            self.result.append(UrlResult(package_name, UrlType.URL, url, UrlStatus.UNCHECKED))
 
         sources, patches = get_sources_from_spec(spec_path)
         for url in sources:
-            self.result.append(UrlResult(package_file, UrlType.SOURCE, url, UrlStatus.UNCHECKED))
+            self.result.append(UrlResult(package_name, UrlType.SOURCE, url, UrlStatus.UNCHECKED))
         for url in patches:
-            self.result.append(UrlResult(package_file, UrlType.PATCH, url, UrlStatus.UNCHECKED))
+            self.result.append(UrlResult(package_name, UrlType.PATCH, url, UrlStatus.UNCHECKED))
 
     def update_url_status(self, statuses: dict[str, UrlStatus]):
         """Update each url result with its status."""
@@ -458,6 +459,7 @@ def check_url_batch(batch: set[str], redirect: bool) -> dict[str, UrlStatus]:
     # using threads instead.
     # The ||true at the end guarantees a 0 exit code, even if some URLs failed.
     # url_effective is only used for debugging
+    # TODO: use --out-null instead of -o /dev/null from curl ver. 8.16.0
     cmd = ('curl --ssl -s --ftp-method singlecwd '
            f"-m {timeout} -I {'-L --max-redirs 10' if redirect else ''} "
            '--write-out "%{response_code} %{ssl_verify_result} %{time_connect} '

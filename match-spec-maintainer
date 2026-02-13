@@ -13,7 +13,7 @@ readonly TMPFILE="$(mktemp)"
 readonly TMP2FILE="$(mktemp)"
 readonly TMP3FILE="$(mktemp)"
 readonly MAINTFILE="$(mktemp)"
-trap 'rm -f "${TMPFILE}" "${TMP2FILE}" "${TMP3FILE}" "${MAINTFILE}"' 0
+trap 'rm -f "${TMPFILE}" "${TMP2FILE}" "${TMP3FILE}" "${MAINTFILE}"' EXIT
 
 # Source for the maintdb
 readonly MAINTDB_URL='https://pkgsubmit.mageia.org/data/maintdb.txt'

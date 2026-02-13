@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Extract a table of mismatched Spec & RPM versions from spec-rpm-mismatch
 #
 # Copyright © 2022 Daniel Fandrich.

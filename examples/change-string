@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Change all matching strings in a file
 #
 # Copyright © 2022 Daniel Fandrich.

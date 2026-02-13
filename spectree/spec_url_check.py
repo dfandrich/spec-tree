@@ -364,7 +364,7 @@ def process_urls(checker: Callable, batches: list[set[str]],
                  redirect: bool) -> dict[str, UrlStatus]:
     """Process the given packages in batches with thread parallelism."""
     total_urls = sum(len(b) for b in batches)
-    url_results = {}
+    url_results = {}  # type: dict[str, UrlStatus]
     with concurrent.futures.ThreadPoolExecutor(max_workers=PARALLEL_URL_THREADS) as executor:
         futures = (executor.submit(checker, package, redirect) for package in batches)
         for n, future in enumerate(concurrent.futures.as_completed(futures)):
@@ -468,9 +468,13 @@ def check_url_batch(batch: set[str], redirect: bool) -> dict[str, UrlStatus]:
     with os.popen(cmd, 'r') as pipe:
         while line := pipe.readline():
             debug('RESULTS: %s', line.strip())
-            response_code, ssl_verify_result, time_connect, time_total, num_connects, _ = line.strip().split(maxsplit=5)
-            response_code, ssl_verify_result, time_connect, time_total, num_connects = (
-                int(response_code), int(ssl_verify_result), int(float(time_connect) * timeout_factor), int(float(time_total) * timeout_factor), int(num_connects))
+            values = line.strip().split(maxsplit=5)
+            response_code = int(values.pop(0))
+            ssl_verify_result = int(values.pop(0))
+            time_connect = int(float(values.pop(0)) * timeout_factor)
+            time_total = int(float(values.pop(0)) * timeout_factor)
+            num_connects = int(values.pop(0))
+
             # Get the URL corresponding to this result
             url = urls.pop(0)
 

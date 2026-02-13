@@ -54,7 +54,7 @@ def get_local_package_paths(package_glob: str) -> list[str]:
     return [f for f in spec_packages if stat.S_ISDIR(os.stat(f).st_mode)]
 
 
-def determine_spec_tree_style(package_glob: str) -> int:
+def determine_spec_tree_style(package_glob: str) -> SpecStyle:
     """Figure out why kind of style of SVN checkout is in use."""
     package_file = glob.glob(package_glob)[-1]
     debug('Checking spec style based on %s', package_file)

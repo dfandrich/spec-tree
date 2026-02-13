@@ -363,26 +363,27 @@ class PackageProcessor:
         """Print a text report after all packages have been processed."""
         print()
         print('Packages with no associated SRPM file on the server')
-        for package in self.result.matching(NoSrpmFile):
-            print(packagers[package.name], package.name)
+        for nosrpm_pkg in self.result.matching(NoSrpmFile):
+            print(packagers[nosrpm_pkg.name], nosrpm_pkg.name)
 
         print()
         print('Could not determine version number from these packages')
-        for package in self.result.matching(ParseError):
-            print(packagers[package.name], package.name)
+        for parseerr_pkg in self.result.matching(ParseError):
+            print(packagers[parseerr_pkg.name], parseerr_pkg.name)
 
         print()
         print('Version missing on server')
-        for package in self.result.matching(VersionMismatch):
-            print(packagers[package.name], package.name, package.base_name, package.srpm_name)
+        for vermismatch_pkg in self.result.matching(VersionMismatch):
+            print(packagers[vermismatch_pkg.name], vermismatch_pkg.name, vermismatch_pkg.base_name,
+                  vermismatch_pkg.srpm_name)
 
         print()
         print('Version match on server')
         if len(self.result.matching(VersionMatch)) > 300:
             print(f'{len(self.result.matching(VersionMatch))} spec files have matching RPMs (not shown)')
         else:
-            for package in self.result.matching(VersionMatch):
-                print(packagers[package.name], package.srpm_name)
+            for vermatch_pkg in self.result.matching(VersionMatch):
+                print(packagers[vermatch_pkg.name], vermatch_pkg.srpm_name)
 
     def print_html_report(self, packagers: dict[str, str]):
         """Print an HTML report after all packages have been processed."""
@@ -421,12 +422,13 @@ class PackageProcessor:
                   <th>Package</th>
                 </tr>
             """))
-            for package in self.result.matching(NoSrpmFile):
-                url = SVNWEB_URL_TEMPLATE.format(version=SRPM_VERSION, package=escape(package.name))
+            for nosrpm_pkg in self.result.matching(NoSrpmFile):
+                url = SVNWEB_URL_TEMPLATE.format(version=SRPM_VERSION,
+                                                 package=escape(nosrpm_pkg.name))
                 print(textwrap.dedent(f"""
                     <tr>
-                      <td>{escape(packagers[package.name])}</td>
-                      <td><a href="{url}">{escape(package.name)}</a></td>
+                      <td>{escape(packagers[nosrpm_pkg.name])}</td>
+                      <td><a href="{url}">{escape(nosrpm_pkg.name)}</a></td>
                     </tr>
                 """))
             print('</table>')
@@ -457,20 +459,21 @@ class PackageProcessor:
               <th>Spec version</th>
             </tr>
          """))
-        for package in self.result.matching(VersionMismatch):
-            _, have_ver, _, have_distrib = rpm_versions(package.base_name)
-            _, should_have_ver, _, should_have_distrib = rpm_versions(package.srpm_name)
+        for vermismatch_pkg in self.result.matching(VersionMismatch):
+            _, have_ver, _, have_distrib = rpm_versions(vermismatch_pkg.base_name)
+            _, should_have_ver, _, should_have_distrib = rpm_versions(vermismatch_pkg.srpm_name)
             match_class = ''
             if have_distrib != should_have_distrib:
                 match_class = ' class="distrib"'
             elif have_ver == should_have_ver:
                 match_class = ' class="release"'
-            url = SVNWEB_URL_TEMPLATE.format(version=SRPM_VERSION, package=escape(package.name))
+            url = SVNWEB_URL_TEMPLATE.format(version=SRPM_VERSION,
+                                             package=escape(vermismatch_pkg.name))
             print(textwrap.dedent(f"""
                     <tr{match_class}>
-                      <td>{escape(packagers[package.name])}</td>
-                      <td>{escape(package.base_name)}</td>
-                      <td><a href="{url}">{escape(package.srpm_name)}</a></td>
+                      <td>{escape(packagers[vermismatch_pkg.name])}</td>
+                      <td>{escape(vermismatch_pkg.base_name)}</td>
+                      <td><a href="{url}">{escape(vermismatch_pkg.srpm_name)}</a></td>
                     </tr>
                 """))
         print('</table>')
@@ -527,11 +530,11 @@ class PackageProcessor:
                       <th>Spec/RPM version</th>
                     </tr>
                 """))
-                for package in self.result.matching(VersionMatch):
+                for vermatch_pkg in self.result.matching(VersionMatch):
                     print(textwrap.dedent(f"""
                         <tr>
-                          <td>{escape(packagers[package.name])}</td>
-                          <td>{escape(package.srpm_name)}</td>
+                          <td>{escape(packagers[vermatch_pkg.name])}</td>
+                          <td>{escape(vermatch_pkg.srpm_name)}</td>
                         </tr>
                     """))
                 print('</table>')

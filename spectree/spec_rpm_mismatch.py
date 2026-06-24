@@ -30,7 +30,7 @@ import urllib.parse
 from dataclasses import dataclass
 from html import escape, unescape
 from logging import debug, error, fatal, info, warning
-from typing import Optional, Type, TypeVar
+from typing import Optional, TypeVar
 
 from spectree import spectree
 
@@ -297,7 +297,7 @@ class VersionMismatch(PackageResult):
 class ResultCollection:
     """Class holding the result of all package processing."""
     def __init__(self):
-        self.result = []  # type: list[PackageResult]
+        self.result: list[PackageResult] = []
         self.sorted = True
 
     def add(self, package: PackageResult):
@@ -309,11 +309,11 @@ class ResultCollection:
         self.result.sort(key=lambda x: x.name)
         self.sorted = True
 
-    def has_matching(self, result: Type[TypePackageResult]) -> bool:
+    def has_matching(self, result: type[TypePackageResult]) -> bool:
         """Returns True if any matching package is found."""
         return any(True for x in self.result if isinstance(x, result))
 
-    def matching(self, result: Type[TypePackageResult]) -> list[TypePackageResult]:
+    def matching(self, result: type[TypePackageResult]) -> list[TypePackageResult]:
         """Returns list of matching packages in sorted order."""
         if not self.sorted:
             self._sort()

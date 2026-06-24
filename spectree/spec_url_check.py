@@ -197,7 +197,7 @@ class PackageProcessor:
 
     def __init__(self, spec_style: int):
         self.spec_style = spec_style
-        self.result = []  # type: list[UrlResult]
+        self.result: list[UrlResult] = []
 
     def process_package(self, package_file: str):
         """Process the spec files to extract URLs.
@@ -365,7 +365,7 @@ def process_urls(checker: Callable, batches: list[set[str]],
                  redirect: bool) -> dict[str, UrlStatus]:
     """Process the given packages in batches with thread parallelism."""
     total_urls = sum(len(b) for b in batches)
-    url_results = {}  # type: dict[str, UrlStatus]
+    url_results: dict[str, UrlStatus] = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=PARALLEL_URL_THREADS) as executor:
         futures = (executor.submit(checker, package, redirect) for package in batches)
         for n, future in enumerate(concurrent.futures.as_completed(futures)):
@@ -517,7 +517,7 @@ def check_urls(urls: Iterable[str], redirect: bool = False) -> dict[str, UrlStat
 
     Do this in parallel for speed.
     """
-    all_urls = []
+    all_urls: list[str] = []
     for url in urls:
         if not (m := URL_MATCH_RE.match(url)):
             warning(f'Not a valid URL; skipping: {url}')
@@ -549,7 +549,7 @@ def check_urls(urls: Iterable[str], redirect: bool = False) -> dict[str, UrlStat
     if len(all_urls) < 100:
         all_urls.sort()
 
-    batches = []
+    batches: list[set[str]] = []
     while all_urls:
         batch = set()
         for _ in range(batch_size):

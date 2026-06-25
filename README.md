@@ -46,7 +46,15 @@ Build and install the latest release of code from GitHub with:
 
     pip3 install https://glare.now.sh/dfandrich/spec-tree/tar
 
-The Python module is not intended to maintain a stable API.
+Test the code using pytest like this:
+
+    pytest
+
+or unittest like this:
+
+    python -m unittest
+
+The Python module is not intended to maintain a stable API across releases.
 
 ## Usage
 

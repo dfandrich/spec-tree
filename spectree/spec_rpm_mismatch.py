@@ -129,7 +129,7 @@ def retrieve_dir_contents_curl(url: str) -> list[str]:
     ftp allows a trivially-parsed directory listing.
     """
     listing = []
-    cmd = 'curl -f -s -l --ftp-method SINGLECWD --ssl -- ' + shlex.quote(url)
+    cmd = 'curl -f -s -m 300 -l --ftp-method SINGLECWD --ssl -- ' + shlex.quote(url)
     info('Running: %s', cmd)
     with os.popen(cmd, 'r') as pipe:
         while line := pipe.readline():
@@ -189,7 +189,7 @@ def retrieve_dir_contents_http(url: str) -> list[str]:
     """Return an HTML directory listing via HTTP/S."""
     htmlp = HTMLDirParser()
 
-    cmd = 'curl -f -s --compressed -- ' + shlex.quote(url)
+    cmd = 'curl -f -s -m 300 --compressed -- ' + shlex.quote(url)
     info('Running: %s', cmd)
     with os.popen(cmd, 'r') as pipe:
         while data := pipe.read(1024):

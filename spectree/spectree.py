@@ -100,7 +100,7 @@ def get_packagers_mgarepo() -> dict[str, str]:
 def get_packagers() -> dict[str, str]:
     """Retrieve a dict containing packagers for each package."""
     packagers = collections.defaultdict(lambda: UNKNOWN_PACKAGER)
-    cmd = 'curl -f -s --compressed ' + shlex.quote(MAINTDB_URL)
+    cmd = 'curl -f -s -m 300 --compressed -- ' + shlex.quote(MAINTDB_URL)
     info('Running: %s', cmd)
     with os.popen(cmd, 'r') as pipe:
         while line := pipe.readline():

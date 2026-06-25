@@ -74,7 +74,7 @@ HTML_FOOTER = textwrap.dedent("""
 """)
 
 
-PACKAGE_RE = re.compile(r'^(.*)(-[\w\.+~^]+-[\w\.]+\.mga(\d+))(\.\w+)?\.src\.rpm$')
+PACKAGE_RE = re.compile(r'^(.*)(-[\w\.+~^]+-[\w\.]+\.mga(\d+))(\.\w+)?\.src\.rpm$', re.ASCII)
 
 
 def package_name(rpm: str) -> str:
@@ -93,7 +93,7 @@ def rpm_base_name(rpm: str) -> str:
     return ''
 
 
-PACKAGE_BASE_RE = re.compile(r'^(.*)(-[\w\.+]+)-([\w\.]+)\.mga(\d+)')
+PACKAGE_BASE_RE = re.compile(r'^(.*)-([\w\.+~^]+)-([\w\.]+)\.(\w+\d+)', re.ASCII)
 
 
 def rpm_versions(rpm_base: str) -> tuple[str, str, str, str]:

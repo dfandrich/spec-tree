@@ -370,8 +370,7 @@ def process_urls(checker: Callable, batches: list[set[str]],
         futures = (executor.submit(checker, package, redirect) for package in batches)
         for n, future in enumerate(concurrent.futures.as_completed(futures)):
             result = future.result()  # call this to reveal any exceptions
-            # TODO: for Python>=3.9 use | syntax to merge dicts
-            url_results = {**url_results, **result}
+            url_results |= result
             if n % 4 == 0:
                 # Provide some visual feedback on progress
                 info('%d/%d (%d%%)', len(url_results), total_urls, 100 * len(url_results) / total_urls)
@@ -624,14 +623,14 @@ def main(argv: Optional[list[str]] = None) -> int:
         if recheck_urls:
             info('Starting checking %d redirected URLs', len(recheck_urls))
             rechecked_urls = check_urls(recheck_urls, redirect=True)
-            checked_urls = {**checked_urls, **rechecked_urls}
+            checked_urls |= rechecked_urls
 
         # Check TEMPORARY_ERR entries again.
         recheck_urls = {u for u, s in checked_urls.items() if s == UrlStatus.TEMPORARY_ERR}
         if recheck_urls:
             info('Starting rechecking %d temporary error URLs', len(recheck_urls))
             rechecked_urls = check_urls(recheck_urls, redirect=True)
-            checked_urls = {**checked_urls, **rechecked_urls}
+            checked_urls |= rechecked_urls
 
         # Update the status of all the original URLs with what was discovered
         proc.update_url_status(checked_urls)

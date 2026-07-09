@@ -36,7 +36,7 @@ from spectree import spectree
 
 
 # Match what looks like an actual URL
-URL_MATCH_RE = re.compile(r'([-+.a-zA-Z0-9]+)://')
+URL_MATCH_RE = re.compile(r'([a-zA-Z][-+.a-zA-Z0-9]*)://')
 
 # Parallelize spec parsing with a bit more than the number of available cores
 PARALLEL_SPEC_THREADS = int(1.5 * len(os.sched_getaffinity(0)))

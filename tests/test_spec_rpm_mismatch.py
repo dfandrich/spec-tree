@@ -230,3 +230,42 @@ class TestRetrieveDirContents(unittest.TestCase):
                               ['mirror.readme', 'software'])
         self.assertCountEqual(spec_rpm_mismatch.retrieve_dir_contents('file://localhost/dir/'),
                               ['mirror.readme', 'software'])
+
+
+class TestRetrieveAllPackages(unittest.TestCase):
+    """Test retrieve_all_packages."""
+
+    @mock.patch('spectree.spec_rpm_mismatch.retrieve_dir_contents',
+                return_value=[
+                    'null-0.4-9.mga9.src.rpm',
+                    'task-obsolete-9-123.mga9.src.rpm',
+                    'not-regular.rpm',
+                    'media_info'])
+    def test_retrieve_all_packages(self, mock_dir):
+        expected = ({'null-0.4-9.mga9', 'task-obsolete-9-123.mga9'},
+                    {'null': 'null-0.4-9.mga9', 'task-obsolete': 'task-obsolete-9-123.mga9'})
+
+        self.assertEqual(spec_rpm_mismatch.retrieve_all_packages('http://dummy.example.com/rpms/'),
+                         expected)
+
+    def test_retrieve_all_packages_bad_scheme(self):
+        with self.assertRaises(RuntimeError):
+            spec_rpm_mismatch.retrieve_all_packages('not-real-scheme://just/made/up')
+
+    @mock.patch('spectree.spec_rpm_mismatch.retrieve_dir_contents', return_value=[])
+    def test_retrieve_all_packages_empty(self, mock_dir):
+        with self.assertRaises(RuntimeError):
+            spec_rpm_mismatch.retrieve_all_packages('http://server.example.com/emptydir/')
+
+
+class TestGetSrpmNameStubFromSpec(unittest.TestCase):
+    """Test get_srpm_name_stub_from_spec."""
+
+    @mock.patch('os.popen', return_value=io.StringIO('foo-bar-1.23-4.NOREL\nlib64foobar0-1.23-4.NOREL\n'))
+    def test_get_srpm_name_stub_from_spec(self, mock_popen):
+        self.assertEqual(spec_rpm_mismatch.get_srpm_name_stub_from_spec('dummy.spec', 'NOREL'),
+                         'foo-bar-1.23-4.NOREL')
+
+    @mock.patch('os.popen', return_value=io.StringIO(''))
+    def test_get_srpm_name_stub_from_spec_empty(self, mock_popen):
+        self.assertEqual(spec_rpm_mismatch.get_srpm_name_stub_from_spec('not-spec', 'NOREL'), '')

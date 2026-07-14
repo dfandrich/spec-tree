@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "spec-tree"
 description = "Tools to manage a large set of RPM .spec files"
-version = "2025.1.1dev"
+version = "2026.1dev"
 readme = "README.md"
 authors = [{name = "Dan Fandrich", email = "dan@coneharvesters.com"}]
 license = {text = "GPLv2+"}

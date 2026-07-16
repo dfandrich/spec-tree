@@ -27,7 +27,7 @@ class TestPackageName(unittest.TestCase):
             ('gtk4.0-4.10.3-3.mga9.src.rpm', 'gtk4.0'),
         ]:
             with self.subTest(pkg=pkg, name=name):
-                self.assertEqual(spec_rpm_mismatch.package_name(pkg), name)
+                self.assertEqual(name, spec_rpm_mismatch.package_name(pkg))
 
     def test_package_name_false(self):
         for pkg in [
@@ -37,7 +37,7 @@ class TestPackageName(unittest.TestCase):
             'not-1-99-3%4.mga9.src.rpm',
         ]:
             with self.subTest(pkg=pkg):
-                self.assertEqual(spec_rpm_mismatch.package_name(pkg), '')
+                self.assertEqual('', spec_rpm_mismatch.package_name(pkg))
 
 
 class TestRpmBaseName(unittest.TestCase):
@@ -55,7 +55,7 @@ class TestRpmBaseName(unittest.TestCase):
             ('xyzzy', ''),
         ]:
             with self.subTest(pkg=pkg, namever=namever):
-                self.assertEqual(spec_rpm_mismatch.rpm_base_name(pkg), namever)
+                self.assertEqual(namever, spec_rpm_mismatch.rpm_base_name(pkg))
 
 
 class TestRpmVersions(unittest.TestCase):
@@ -73,7 +73,7 @@ class TestRpmVersions(unittest.TestCase):
             ('xyzzy', ('', '', '', '')),
         ]:
             with self.subTest(pkg=pkg, versions=versions):
-                self.assertEqual(spec_rpm_mismatch.rpm_versions(pkg), versions)
+                self.assertEqual(versions, spec_rpm_mismatch.rpm_versions(pkg))
 
 
 class TestResultCollection(unittest.TestCase):
@@ -89,16 +89,16 @@ class TestResultCollection(unittest.TestCase):
             base_name='versionmatch_pkg-0-1-1.mga3.src.rpm'))
 
     def test_is_matching(self):
-        self.assertCountEqual(self.testrc.matching(spec_rpm_mismatch.NoSrpmFile),
-                              [spec_rpm_mismatch.NoSrpmFile('nosrpm_pkg')])
-        self.assertCountEqual(self.testrc.matching(spec_rpm_mismatch.ParseError),
-                              [spec_rpm_mismatch.ParseError('parseerror_pkg'),
-                               spec_rpm_mismatch.ParseError('parseerror2_pkg')])
-        self.assertCountEqual(self.testrc.matching(spec_rpm_mismatch.VersionMismatch),
-                              [spec_rpm_mismatch.VersionMismatch(
+        self.assertCountEqual([spec_rpm_mismatch.NoSrpmFile('nosrpm_pkg')],
+                self.testrc.matching(spec_rpm_mismatch.NoSrpmFile))
+        self.assertCountEqual([spec_rpm_mismatch.ParseError('parseerror_pkg'),
+                               spec_rpm_mismatch.ParseError('parseerror2_pkg')],
+                self.testrc.matching(spec_rpm_mismatch.ParseError))
+        self.assertCountEqual([spec_rpm_mismatch.VersionMismatch(
                                    name='versionmatch_pkg',
                                    srpm_name='versionmatch_pkg-0-1-2.mga3.src.rpm',
-                                   base_name='versionmatch_pkg-0-1-1.mga3.src.rpm')])
+                                   base_name='versionmatch_pkg-0-1-1.mga3.src.rpm')],
+                self.testrc.matching(spec_rpm_mismatch.VersionMismatch))
 
     def test_has_matching(self):
         self.assertTrue(self.testrc.has_matching(spec_rpm_mismatch.NoSrpmFile))
@@ -118,7 +118,7 @@ class TestRetrieveDirContents(unittest.TestCase):
 
     @mock.patch('os.popen', return_value=io.StringIO('foo\nbar\n'))
     def test_retrieve_dir_contents_http_unsupported(self, mock_popen):
-        self.assertCountEqual(spec_rpm_mismatch.retrieve_dir_contents('http://unsupported/'), [])
+        self.assertCountEqual([], spec_rpm_mismatch.retrieve_dir_contents('http://unsupported/'))
 
     NGINX_LISTING = textwrap.dedent("""\
         <html>
@@ -133,8 +133,8 @@ class TestRetrieveDirContents(unittest.TestCase):
 
     @mock.patch('os.popen', return_value=io.StringIO(NGINX_LISTING))
     def test_retrieve_dir_contents_http_nginx(self, mock_popen):
-        self.assertCountEqual(spec_rpm_mismatch.retrieve_dir_contents('http://nginx-server/'),
-                              ['mirror.readme'])
+        self.assertCountEqual(['mirror.readme'],
+                              spec_rpm_mismatch.retrieve_dir_contents('http://nginx-server/'))
 
     APACHE_LISTING = textwrap.dedent("""\
         <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
@@ -157,8 +157,8 @@ class TestRetrieveDirContents(unittest.TestCase):
 
     @mock.patch('os.popen', return_value=io.StringIO(APACHE_LISTING))
     def test_retrieve_dir_contents_http_apache(self, mock_popen):
-        self.assertCountEqual(spec_rpm_mismatch.retrieve_dir_contents('http://apache-server/'),
-                              ['mirror.readme'])
+        self.assertCountEqual(['mirror.readme'],
+                              spec_rpm_mismatch.retrieve_dir_contents('http://apache-server/'))
 
     LIGHTTPD_LISTING = textwrap.dedent("""\
         <!DOCTYPE html>
@@ -198,8 +198,8 @@ class TestRetrieveDirContents(unittest.TestCase):
 
     @mock.patch('os.popen', return_value=io.StringIO(LIGHTTPD_LISTING))
     def test_retrieve_dir_contents_http_lighttpd(self, mock_popen):
-        self.assertCountEqual(spec_rpm_mismatch.retrieve_dir_contents('http://lighttpd-server/'),
-                              ['mirror.readme'])
+        self.assertCountEqual(['mirror.readme'],
+                              spec_rpm_mismatch.retrieve_dir_contents('http://lighttpd-server/'))
 
     IIS_LISTING = textwrap.dedent("""\
 <html><head>
@@ -211,8 +211,8 @@ class TestRetrieveDirContents(unittest.TestCase):
 
     @mock.patch('os.popen', return_value=io.StringIO(IIS_LISTING))
     def test_retrieve_dir_contents_iis(self, mock_popen):
-        self.assertCountEqual(spec_rpm_mismatch.retrieve_dir_contents('http://iis-server/'),
-                              ['mirror.readme'])
+        self.assertCountEqual(['mirror.readme'],
+                              spec_rpm_mismatch.retrieve_dir_contents('http://iis-server/'))
 
     FTP_LISTING = textwrap.dedent("""\
         mirror.readme
@@ -221,15 +221,15 @@ class TestRetrieveDirContents(unittest.TestCase):
 
     @mock.patch('os.popen', return_value=io.StringIO(FTP_LISTING))
     def test_retrieve_dir_contents_ftp(self, mock_popen):
-        self.assertCountEqual(spec_rpm_mismatch.retrieve_dir_contents('ftp://generic-ftp/'),
-                              ['mirror.readme', 'software'])
+        self.assertCountEqual(['mirror.readme', 'software'],
+                              spec_rpm_mismatch.retrieve_dir_contents('ftp://generic-ftp/'))
 
     @mock.patch('os.listdir', return_value=['mirror.readme', 'software'])
     def test_retrieve_dir_contents_file(self, mock_listdir):
-        self.assertCountEqual(spec_rpm_mismatch.retrieve_dir_contents('file:///filesystem/dir/'),
-                              ['mirror.readme', 'software'])
-        self.assertCountEqual(spec_rpm_mismatch.retrieve_dir_contents('file://localhost/dir/'),
-                              ['mirror.readme', 'software'])
+        self.assertCountEqual(['mirror.readme', 'software'],
+                              spec_rpm_mismatch.retrieve_dir_contents('file:///filesystem/dir/'))
+        self.assertCountEqual(['mirror.readme', 'software'],
+                              spec_rpm_mismatch.retrieve_dir_contents('file://localhost/dir/'))
 
 
 class TestRetrieveAllPackages(unittest.TestCase):
@@ -245,8 +245,8 @@ class TestRetrieveAllPackages(unittest.TestCase):
         expected = ({'null-0.4-9.mga9', 'task-obsolete-9-123.mga9'},
                     {'null': 'null-0.4-9.mga9', 'task-obsolete': 'task-obsolete-9-123.mga9'})
 
-        self.assertEqual(spec_rpm_mismatch.retrieve_all_packages('http://dummy.example.com/rpms/'),
-                         expected)
+        self.assertEqual(expected,
+                         spec_rpm_mismatch.retrieve_all_packages('http://dummy.example.com/rpms/'))
 
     def test_retrieve_all_packages_bad_scheme(self):
         with self.assertRaises(RuntimeError):
@@ -263,9 +263,9 @@ class TestGetSrpmNameStubFromSpec(unittest.TestCase):
 
     @mock.patch('os.popen', return_value=io.StringIO('foo-bar-1.23-4.NOREL\nlib64foobar0-1.23-4.NOREL\n'))
     def test_get_srpm_name_stub_from_spec(self, mock_popen):
-        self.assertEqual(spec_rpm_mismatch.get_srpm_name_stub_from_spec('dummy.spec', 'NOREL'),
-                         'foo-bar-1.23-4.NOREL')
+        self.assertEqual('foo-bar-1.23-4.NOREL',
+                         spec_rpm_mismatch.get_srpm_name_stub_from_spec('dummy.spec', 'NOREL'))
 
     @mock.patch('os.popen', return_value=io.StringIO(''))
     def test_get_srpm_name_stub_from_spec_empty(self, mock_popen):
-        self.assertEqual(spec_rpm_mismatch.get_srpm_name_stub_from_spec('not-spec', 'NOREL'), '')
+        self.assertEqual('', spec_rpm_mismatch.get_srpm_name_stub_from_spec('not-spec', 'NOREL'))

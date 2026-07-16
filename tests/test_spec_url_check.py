@@ -25,8 +25,8 @@ class TestGetUrlsFromSpec(unittest.TestCase):
 
     @mock.patch('os.popen', return_value=io.StringIO(URLS))
     def test_get_urls_from_spec(self, mock_popen):
-        self.assertCountEqual(spec_url_check.get_urls_from_spec('test.spec'),
-                              ['https://example.com/', 'https://example.com/1', 'ftp://example/'])
+        self.assertCountEqual(['https://example.com/', 'https://example.com/1', 'ftp://example/'],
+                              spec_url_check.get_urls_from_spec('test.spec'))
 
 
 class TestGetSourcesFromSpec(unittest.TestCase):
@@ -45,10 +45,11 @@ Patch2: 133+chaos://patch-not-scheme
 
     @mock.patch('os.popen', return_value=io.StringIO(SOURCES))
     def test_get_urls_from_spec(self, mock_popen):
-        self.assertEqual(spec_url_check.get_sources_from_spec('test.spec'),
+        self.assertEqual(
             ({'https://example.com/download/xyzzy-1.2.3.tar.xz',
               'https://example.com/download/xyzzy-1.2.3.tar.xz.asc',
               'coaps+ws://real-scheme'},
              {'ftp://example.net/security.patch',
-              'gopher://example.net/9/patch'}))
+              'gopher://example.net/9/patch'}),
+                spec_url_check.get_sources_from_spec('test.spec'))
 

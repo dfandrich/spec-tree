@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Show packages whose spec files specify an RPM version that does not exist.
 
 Copyright © 2014–2023 Daniel Fandrich.

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Check URLs in spec files.
 
 Copyright © 2023 Daniel Fandrich.
@@ -26,10 +25,11 @@ import shlex
 import sys
 import textwrap
 import time
+from collections.abc import Iterable
 from dataclasses import dataclass
 from html import escape
 from logging import debug, error, fatal, info, warning
-from typing import Callable, Iterable, Optional
+from typing import Callable, Optional
 from urllib.parse import quote
 
 from spectree import spectree

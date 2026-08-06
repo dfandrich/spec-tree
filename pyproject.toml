@@ -52,6 +52,7 @@ dev = [
     "flake8-super",
     "flake8-warnings",
     "flake8-wot",
+    "pyrefly",
     "pytype"
 ]
 
@@ -85,3 +86,16 @@ max-line-length = 206
 
 [tool.flake8.known-modules]
 spec-tree = ["spectree"]
+
+[tool.pyrefly]
+project-includes = [
+    "**/*.py*",
+    "**/*.ipynb",
+]
+preset = "strict"
+check-unannotated-defs = true
+
+[tool.pyrefly.errors]
+implicit-any-parameter = false
+implicit-any-lambda = false
+missing-override-decorator = false

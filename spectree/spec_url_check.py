@@ -361,8 +361,8 @@ def process_packages(proc: PackageProcessor, spec_packages: list[str]):
             future.result()  # call this to reveal any exceptions
 
 
-def process_urls(checker: Callable, batches: list[set[str]],
-                 redirect: bool) -> dict[str, UrlStatus]:
+def process_urls(checker: Callable[[set[str], bool], dict[str, UrlStatus]],
+                 batches: list[set[str]], redirect: bool) -> dict[str, UrlStatus]:
     """Process the given packages in batches with thread parallelism."""
     total_urls = sum(len(b) for b in batches)
     url_results: dict[str, UrlStatus] = {}

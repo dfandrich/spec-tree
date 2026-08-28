@@ -99,3 +99,7 @@ check-unannotated-defs = true
 implicit-any-parameter = false
 implicit-any-lambda = false
 missing-override-decorator = false
+
+[tool.ruff]
+lint.ignore = ["I001", "RUF100", "LOG015", "UP045"]
+lint.external = ["I100"]

@@ -1,6 +1,6 @@
 """Functions for manipulating a tree of RPM spec files.
 
-Copyright © 2014–2023 Daniel Fandrich.
+Copyright © 2014–2026 Daniel Fandrich.
 This program is free software; you can redistribute it and/or modify
 Licensed under GNU General Public License 2.0 or later.
 Some rights reserved. See COPYING.

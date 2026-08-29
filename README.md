@@ -250,7 +250,7 @@ Daniel Fandrich <dan@coneharvesters.com>
 
 See more info at the [project home page].
 
-This program is Copyright © 2014–2023 Daniel Fandrich. It is distributed under
+This program is Copyright © 2014–2026 Daniel Fandrich. It is distributed under
 the terms of the GNU General Public License as published by the Free Software
 Foundation; either version 2 of the License, or (at your option) any later
 version. See [COPYING] for details.

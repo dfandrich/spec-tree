@@ -39,7 +39,7 @@ PARALLEL_THREADS = int(1.5 * len(os.sched_getaffinity(0)))
 
 # SRPM_SOURCE_TEMPLATE = 'ftp://distrib-coffee.ipsl.jussieu.fr/pub/linux/Mageia/distrib/{version}/SRPMS/{media}/{section}/'
 SRPM_SOURCE_TEMPLATE = 'https://distrib-coffee.ipsl.jussieu.fr/pub/linux/Mageia/distrib/{version}/SRPMS/{media}/{section}/'
-SRPM_DISTRO_RELEASE = '10'  # Default distro release number, i.e. the 10 in mga10
+SRPM_DISTRO_RELEASE = '11'  # Default distro release number, i.e. the 11 in mga11
 
 # Substituted into the SRPM_SOURCE_TEMPLATE and used in report titles
 SRPM_VERSION = 'cauldron'

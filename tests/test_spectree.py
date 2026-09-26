@@ -72,3 +72,8 @@ class TestMakeSpecPath(unittest.TestCase):
         self.assertEqual('/path/to/myspeconlypackage/myspeconlypackage.spec',
                          spectreesut.make_spec_path('/path/to/myspeconlypackage',
                                                     spectreesut.SpecStyle.SPEC_STYLE_SPEC_ONLY))
+
+    def test_make_spec_path_unknown(self):
+        with self.assertRaises(RuntimeError):
+             spectreesut.make_spec_path('/path/to/myspeconlypackage',
+                                        spectreesut.SpecStyle.SPEC_STYLE_UNKNOWN)

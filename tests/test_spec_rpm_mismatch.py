@@ -3,6 +3,8 @@
 # flake8: noqa: D102
 
 import io
+import os
+import tempfile
 import textwrap
 import unittest
 from unittest import mock
@@ -269,3 +271,99 @@ class TestGetSrpmNameStubFromSpec(unittest.TestCase):
     @mock.patch('os.popen', return_value=io.StringIO(''))
     def test_get_srpm_name_stub_from_spec_empty(self, mock_popen):
         self.assertEqual('', spec_rpm_mismatch.get_srpm_name_stub_from_spec('not-spec', 'NOREL'))
+
+
+class TestPackageProcessor(unittest.TestCase):
+    """Test PackageProcessor."""
+
+    def test_process_package_no_srpm(self):
+        p = spec_rpm_mismatch.PackageProcessor(
+            set(), {}, spec_rpm_mismatch.spectree.SpecStyle.SPEC_STYLE_INDIVIDUAL, 'mga99')
+
+        p.process_package('new-package')
+        p.process_package('another-package')
+
+        self.assertCountEqual([
+            spec_rpm_mismatch.NoSrpmFile(name='new-package'),
+            spec_rpm_mismatch.NoSrpmFile(name='another-package')
+        ], p.result.matching(spec_rpm_mismatch.NoSrpmFile))
+
+    def test_process_package_no_file(self):
+        """This is technically an integration test because it shells out to a helper utility.
+
+        However, even if that program is missing the test is still designed to succeed.
+        """
+        p = spec_rpm_mismatch.PackageProcessor(
+                {'known-package-0.0-1.custom'}, {'known-package': 'known-package-0.0-1.custom'},
+                spec_rpm_mismatch.spectree.SpecStyle.SPEC_STYLE_INDIVIDUAL, 'mga99')
+        with tempfile.TemporaryDirectory() as tempdir:
+            # Change to an empty directory to avoid any real files affecting the test
+            os.chdir(tempdir)
+
+            p.process_package('known-package')
+
+        self.assertCountEqual([], p.result.matching(spec_rpm_mismatch.NoSrpmFile))
+        self.assertCountEqual([spec_rpm_mismatch.ParseError(name='known-package')],
+                              p.result.matching(spec_rpm_mismatch.ParseError))
+
+    @mock.patch('spectree.spec_rpm_mismatch.get_srpm_name_stub_from_spec',
+                return_value='known-package-0.0-1.custom')
+    def test_process_package_bad_name(self, mock_gsnsfs):
+        p = spec_rpm_mismatch.PackageProcessor(
+                {'known-package-0.0-1.custom'}, {'known-package': 'known-package-0.0-1.custom'},
+                spec_rpm_mismatch.spectree.SpecStyle.SPEC_STYLE_INDIVIDUAL, 'mga99')
+
+        p.process_package('known-package')
+
+        self.assertCountEqual([spec_rpm_mismatch.ParseError(name='known-package')],
+                              p.result.matching(spec_rpm_mismatch.ParseError))
+
+    @mock.patch('spectree.spec_rpm_mismatch.get_srpm_name_stub_from_spec',
+                return_value='known-package-0.0-1.mga99')
+    def test_process_package_match(self, mock_gsnsfs):
+        p = spec_rpm_mismatch.PackageProcessor(
+                {'known-package-0.0-1.mga99'}, {'known-package': 'known-package-0.0-1.mga99'},
+                spec_rpm_mismatch.spectree.SpecStyle.SPEC_STYLE_INDIVIDUAL, 'mga99')
+
+        p.process_package('known-package')
+
+        self.assertCountEqual([
+            spec_rpm_mismatch.VersionMatch(
+                name='known-package',
+                srpm_name='known-package-0.0-1.mga99',
+             )],
+             p.result.matching(spec_rpm_mismatch.VersionMatch))
+
+    @mock.patch('spectree.spec_rpm_mismatch.get_srpm_name_stub_from_spec',
+                return_value='known-package-9.9-1.mga99')
+    def test_process_package_mismatch(self, mock_gsnsfs):
+        p = spec_rpm_mismatch.PackageProcessor(
+                {'known-package-0.0-1.mga99'}, {'known-package': 'known-package-0.0-1.mga99'},
+                spec_rpm_mismatch.spectree.SpecStyle.SPEC_STYLE_INDIVIDUAL, 'mga99')
+
+        p.process_package('known-package')
+
+        self.assertCountEqual([
+            spec_rpm_mismatch.VersionMismatch(
+                name='known-package',
+                base_name='known-package-0.0-1.mga99',
+                srpm_name='known-package-9.9-1.mga99',
+             )],
+             p.result.matching(spec_rpm_mismatch.VersionMismatch))
+
+    @mock.patch('spectree.spec_rpm_mismatch.get_srpm_name_stub_from_spec',
+                return_value='known-package-0.0-1.mga99')
+    def test_process_package_unknown_name(self, mock_gsnsfs):
+        p = spec_rpm_mismatch.PackageProcessor(
+                {'weird-9999-1.mga99'}, {'known-package': 'known-package-0.0-1.mga99'},
+                spec_rpm_mismatch.spectree.SpecStyle.SPEC_STYLE_INDIVIDUAL, 'mga99')
+
+        p.process_package('known-package')
+
+        self.assertCountEqual([
+            spec_rpm_mismatch.VersionMismatch(
+                name='known-package',
+                base_name='known-package-0.0-1.mga99',
+                srpm_name='known-package-0.0-1.mga99',
+             )],
+             p.result.matching(spec_rpm_mismatch.VersionMismatch))

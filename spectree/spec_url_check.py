@@ -21,7 +21,7 @@ import enum
 import logging
 import os
 import re
-import shlex
+import subprocess
 import sys
 import textwrap
 import time
@@ -148,20 +148,20 @@ def get_urls_from_spec(spec_file: str) -> set[str]:
     This returns zero or more syntactically-valid URLs in a set which de-dupes
     them.
     """
-    cmd = f'rpmspec -q --queryformat "%{{URL}}\\n" -- {shlex.quote(spec_file)}'
+    cmd = ['rpmspec', '-q', '--queryformat', r'%{URL}\n', '--', spec_file]
     debug('Running: %s', cmd)
     urls = set()
-    with os.popen(cmd, 'r') as pipe:
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True) as pipe:
         # There is one URL generated per package type
-        while line := pipe.readline():
+        for line in pipe.stdout or []:
             # rpmspec returns (none) if no Url: line is found
             if (url := line.strip()) and url != '(none)':
                 if URL_MATCH_RE.match(url):
                     urls.add(url)
                 else:
                     warning(f'Not a valid URL in spec file; skipping: {url}')
-        if pipe.close():
-            error('Cannot parse spec file %s', spec_file)
+    if pipe.returncode:
+        error('Cannot parse spec file %s', spec_file)
     return urls
 
 
@@ -171,13 +171,13 @@ def get_sources_from_spec(spec_file: str) -> tuple[set[str], set[str]]:
     This returns a tuple with a set of syntactically-valid source URLs and a
     set of syntactically-valid patch URLs.
     """
-    cmd = f'spectool -- {shlex.quote(spec_file)}'
-    debug('Running: %s', cmd)
+    cmd = ['spectool', '--', spec_file]
+    debug('Running: %s', ' '.join(cmd))
     sources = set()
     patches = set()
-    with os.popen(cmd, 'r') as pipe:
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True) as pipe:
         # There is one URL generated per package type
-        while line := pipe.readline():
+        for line in pipe.stdout or []:
             key, url = line.strip().split(maxsplit=1)
             if key.lower().startswith('source'):
                 if URL_MATCH_RE.match(url):
@@ -187,8 +187,8 @@ def get_sources_from_spec(spec_file: str) -> tuple[set[str], set[str]]:
                     patches.add(url)
             else:
                 info('Not a source or patch type: %s', key)
-        if pipe.close():
-            error('Cannot parse spec file %s', spec_file)
+    if pipe.returncode:
+        error('Cannot parse spec file %s', spec_file)
     return (sources, patches)
 
 
@@ -422,9 +422,9 @@ def get_curl_timeout_factor() -> int:
     Version 7.74.0 had a bug that returned microseconds instead of seconds in
     --write-out.
     """
-    cmd = 'curl -V'
-    with os.popen(cmd, 'r') as pipe:
-        line = pipe.readline()
+    cmd = ['curl', '-V']
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True) as pipe:
+        line = pipe.stdout.readline() if pipe.stdout else ''
         if line:
             parts = line.split(maxsplit=3)
             if len(parts) >= 2 and parts[1] == '7.74.0':
@@ -456,18 +456,19 @@ def check_url_batch(batch: set[str], redirect: bool) -> dict[str, UrlStatus]:
     # can (probably) get interleaved, and we can't associate the ordered
     # results with the original URL. Parallelism is done at a higher level,
     # using threads instead.
-    # The ||true at the end guarantees a 0 exit code, even if some URLs failed.
     # url_effective is only used for debugging
     # TODO: use --out-null instead of -o /dev/null from curl ver. 8.16.0
-    cmd = ('curl --ssl -s --ftp-method singlecwd '
-           f"-m {timeout} -I {'-L --max-redirs 10' if redirect else ''} "
-           '--write-out "%{response_code} %{ssl_verify_result} %{time_connect} '
-           '%{time_total} %{num_connects} %{url_effective}\\n" '
-           f"-o /dev/null {' -o /dev/null '.join(shlex.quote(url) for url in urls)} "
-           '|| true')
-    debug('Running: %s', cmd)
-    with os.popen(cmd, 'r') as pipe:
-        while line := pipe.readline():
+    cmd = ['curl', '--ssl', '-s', '--ftp-method', 'singlecwd', f'-m{timeout}', '-I',
+           '--write-out',
+           (r'%{response_code} %{ssl_verify_result} %{time_connect} '
+            r'%{time_total} %{num_connects} %{url_effective}\n')]
+    if redirect:
+        cmd.extend(['-L', '--max-redirs', '10'])
+    for url in urls:
+        cmd.extend(['-o', '/dev/null', url])
+    debug('Running: %s', ' '.join(cmd))
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True) as pipe:
+        for line in pipe.stdout or []:
             debug('RESULTS: %s', line.strip())
             values = line.strip().split(maxsplit=5)
             response_code = int(values.pop(0))
@@ -503,8 +504,8 @@ def check_url_batch(batch: set[str], redirect: bool) -> dict[str, UrlStatus]:
 
             results[url] = status
 
-        if pipe.close():
-            error('Cannot check URL batch')
+    if pipe.returncode:
+        warning('Problem encountered while checking URL batch')
 
     return results
 

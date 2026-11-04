@@ -25,7 +25,10 @@ class TestGetUrlsFromSpec(unittest.TestCase):
         not-a-url.gz
     """)
 
-    @mock.patch('os.popen', return_value=io.StringIO(URLS))
+    @mock.patch('subprocess.Popen', return_value=mock.MagicMock(
+        __enter__=mock.MagicMock(
+            return_value=mock.MagicMock(
+                stdout=io.StringIO(URLS), returncode=0))))
     def test_get_urls_from_spec(self, mock_popen):
         self.assertCountEqual(['https://example.com/', 'https://example.com/1', 'ftp://example/'],
                               spec_url_check.get_urls_from_spec('test.spec'))
@@ -45,7 +48,10 @@ Patch2: gopher://example.net/9/patch
 Patch2: 133+chaos://patch-not-scheme
     """)
 
-    @mock.patch('os.popen', return_value=io.StringIO(SOURCES))
+    @mock.patch('subprocess.Popen', return_value=mock.MagicMock(
+        __enter__=mock.MagicMock(
+            return_value=mock.MagicMock(
+                stdout=io.StringIO(SOURCES), returncode=0))))
     def test_get_urls_from_spec(self, mock_popen):
         self.assertEqual(
             ({'https://example.com/download/xyzzy-1.2.3.tar.xz',
@@ -64,7 +70,7 @@ class TestProcessPackages(unittest.TestCase):
         self.maxDiff = 4000
 
     spec_returns: ClassVar[dict[str, io.StringIO]] = {
-        r'rpmspec -q --queryformat "%{URL}\n" -- coolthing/coolthing.spec':
+        r'rpmspec -q --queryformat %{URL}\n -- coolthing/coolthing.spec':
             io.StringIO(
                 'https://coolthing.example.com/\n'
                 'https://coolthing.example.com/more\n'
@@ -72,7 +78,7 @@ class TestProcessPackages(unittest.TestCase):
             ),
         r'spectool -- coolthing/coolthing.spec':
             io.StringIO('Source: https://example.com/coolthing-1.2.3.tgz'),
-        r'rpmspec -q --queryformat "%{URL}\n" -- superapp/superapp.spec':
+        r'rpmspec -q --queryformat %{URL}\n -- superapp/superapp.spec':
             io.StringIO(
                 'ftp://geocities.example/superapp.txt\n'
                 'http://example.org/SuperAPP\n'
@@ -86,7 +92,10 @@ class TestProcessPackages(unittest.TestCase):
                 )
     }
 
-    @mock.patch('os.popen', side_effect=lambda f, m: TestProcessPackages.spec_returns[f])
+    @mock.patch('subprocess.Popen', side_effect=lambda cmd, **args: mock.MagicMock(
+        __enter__=mock.MagicMock(
+            return_value=mock.MagicMock(
+                stdout=TestProcessPackages.spec_returns[' '.join(cmd)], returncode=0))))
     def test_process_packages(self, mock_popen):
         proc = spec_url_check.PackageProcessor(SpecStyle.SPEC_STYLE_SPEC_ONLY)
         spec_pkgs = ['coolthing', 'superapp']

@@ -21,7 +21,7 @@ import html.parser
 import logging
 import os
 import re
-import shlex
+import subprocess
 import sys
 import textwrap
 import time
@@ -128,14 +128,14 @@ def retrieve_dir_contents_curl(url: str) -> list[str]:
     ftp allows a trivially-parsed directory listing.
     """
     listing = []
-    cmd = 'curl -f -s -m 300 -l --ftp-method SINGLECWD --ssl -- ' + shlex.quote(url)
-    info('Running: %s', cmd)
-    with os.popen(cmd, 'r') as pipe:
-        while line := pipe.readline():
+    cmd = ['curl', '-lfsm300', '--ftp-method', 'SINGLECWD', '--ssl', '--', url]
+    info('Running: %s', ' '.join(cmd))
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True) as pipe:
+        for line in pipe.stdout or []:
             if line := line.strip():
                 listing.append(line)
-        if pipe.close():
-            error(f'Error retrieving files at %{url}')
+    if pipe.returncode:
+        error(f'Error retrieving files at {url}')
     return listing
 
 
@@ -188,13 +188,14 @@ def retrieve_dir_contents_http(url: str) -> list[str]:
     """Return an HTML directory listing via HTTP/S."""
     htmlp = HTMLDirParser()
 
-    cmd = 'curl -f -s -m 300 --compressed -- ' + shlex.quote(url)
-    info('Running: %s', cmd)
-    with os.popen(cmd, 'r') as pipe:
-        while data := pipe.read(1024):
-            htmlp.feed(data)
-        if pipe.close():
-            error(f'Cannot retrieve file list at %{url}')
+    cmd = ['curl', '-lfsm300', '--compressed', '--', url]
+    info('Running: %s', ' '.join(cmd))
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True) as pipe:
+        if pipe.stdout:
+            while data := pipe.stdout.read(4096):
+                htmlp.feed(data)
+    if pipe.returncode:
+        error(f'Cannot retrieve file list at {url}')
     htmlp.close()
 
     # The first link points to the parent directory which we don't need
@@ -247,15 +248,14 @@ def get_srpm_name_stub_from_spec(spec_file: str, release: str) -> str:
     """
     # %dist includes the mgaX version of the current machine by default, which
     # might not match that of release, so construct the version ourselves.
-    cmd = f'rpmspec -q -D"dist ."{shlex.quote(release)} --queryformat "%{{NAME}}-%{{VERSION}}-%{{RELEASE}}\\n" -- {shlex.quote(spec_file)}'
-    debug('Running: %s', cmd)
-    pipe = os.popen(cmd, 'r')
-    # There may be many RPMs generated, but the first one is the one with the SRPM
-    line = pipe.readline()
-    if not line:
-        return ''
-    _ = pipe.read()  # ignore the rest
-    if pipe.close():
+    cmd = ['rpmspec', '-q', f'-Ddist .{release}', '--queryformat', r'%{NAME}-%{VERSION}-%{RELEASE}\n', '--', spec_file]
+    debug('Running: %s', ' '.join(cmd))
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True) as pipe:
+        # There may be many RPMs generated, but the first one is the one with the SRPM
+        line = pipe.stdout.readline() if pipe.stdout else ''
+        if not line:
+            return ''
+    if pipe.returncode:
         error('Cannot parse spec file %s', spec_file)
         return ''
     return line.strip()

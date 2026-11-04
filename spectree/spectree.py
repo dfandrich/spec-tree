@@ -17,8 +17,8 @@ import contextlib
 import enum
 import glob
 import os
-import shlex
 import stat
+import subprocess
 from logging import debug, error, info
 
 
@@ -82,36 +82,36 @@ def get_packagers_mgarepo() -> dict[str, str]:
     still a working alternative in case MAINTDB_URL ever goes away.
     """
     packagers = collections.defaultdict(lambda: UNKNOWN_PACKAGER)
-    cmd = 'mgarepo maintdb get'
-    info('Running: %s', cmd)
-    with os.popen(cmd, 'r') as pipe:
-        while line := pipe.readline():
+    cmd = ['mgarepo', 'maintdb', 'get']
+    info('Running: %s', ' '.join(cmd))
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True) as pipe:
+        for line in pipe.stdout or []:
             try:
                 package, packager = tuple(line.strip().split())
             except ValueError:
                 error('Problem getting packager on %s', line.strip())
             else:
                 packagers[package] = packager
-        if pipe.close():
-            error('Problem retrieving the maintdb')
+    if pipe.returncode:
+        error('Problem retrieving the maintdb')
     return packagers
 
 
 def get_packagers() -> dict[str, str]:
     """Retrieve a dict containing packagers for each package."""
     packagers = collections.defaultdict(lambda: UNKNOWN_PACKAGER)
-    cmd = 'curl -f -s -m 300 --compressed -- ' + shlex.quote(MAINTDB_URL)
-    info('Running: %s', cmd)
-    with os.popen(cmd, 'r') as pipe:
-        while line := pipe.readline():
+    cmd = ['curl', '-f', '-s', '-m300', '--compressed', '--', MAINTDB_URL]
+    info('Running: %s', ' '.join(cmd))
+    with subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True) as pipe:
+        for line in pipe.stdout or []:
             try:
                 package, packager = tuple(line.strip().split())
             except ValueError:
                 error('Problem getting packager on %s', line.strip())
             else:
                 packagers[package] = packager
-        if pipe.close():
-            error('Problem retrieving the maintdb')
+    if pipe.returncode:
+        error('Problem retrieving the maintdb')
     return packagers
 
 

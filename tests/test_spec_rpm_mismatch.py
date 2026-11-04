@@ -118,7 +118,10 @@ class TestRetrieveDirContents(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             spec_rpm_mismatch.retrieve_dir_contents('rtsp://valid/but/unsupported')
 
-    @mock.patch('os.popen', return_value=io.StringIO('foo\nbar\n'))
+    @mock.patch('subprocess.Popen', return_value=mock.MagicMock(
+        __enter__=mock.MagicMock(
+            return_value=mock.MagicMock(
+                stdout=io.StringIO('foo\nbar\n'), returncode=0))))
     def test_retrieve_dir_contents_http_unsupported(self, mock_popen):
         self.assertCountEqual([], spec_rpm_mismatch.retrieve_dir_contents('http://unsupported/'))
 
@@ -133,7 +136,10 @@ class TestRetrieveDirContents(unittest.TestCase):
         </html>
     """)
 
-    @mock.patch('os.popen', return_value=io.StringIO(NGINX_LISTING))
+    @mock.patch('subprocess.Popen', return_value=mock.MagicMock(
+        __enter__=mock.MagicMock(
+            return_value=mock.MagicMock(
+                stdout=io.StringIO(NGINX_LISTING), returncode=0))))
     def test_retrieve_dir_contents_http_nginx(self, mock_popen):
         self.assertCountEqual(['mirror.readme'],
                               spec_rpm_mismatch.retrieve_dir_contents('http://nginx-server/'))
@@ -157,7 +163,10 @@ class TestRetrieveDirContents(unittest.TestCase):
         </body></html>
     """)
 
-    @mock.patch('os.popen', return_value=io.StringIO(APACHE_LISTING))
+    @mock.patch('subprocess.Popen', return_value=mock.MagicMock(
+        __enter__=mock.MagicMock(
+            return_value=mock.MagicMock(
+                stdout=io.StringIO(APACHE_LISTING), returncode=0))))
     def test_retrieve_dir_contents_http_apache(self, mock_popen):
         self.assertCountEqual(['mirror.readme'],
                               spec_rpm_mismatch.retrieve_dir_contents('http://apache-server/'))
@@ -198,7 +207,10 @@ class TestRetrieveDirContents(unittest.TestCase):
         </html>
     """)
 
-    @mock.patch('os.popen', return_value=io.StringIO(LIGHTTPD_LISTING))
+    @mock.patch('subprocess.Popen', return_value=mock.MagicMock(
+        __enter__=mock.MagicMock(
+            return_value=mock.MagicMock(
+                stdout=io.StringIO(LIGHTTPD_LISTING), returncode=0))))
     def test_retrieve_dir_contents_http_lighttpd(self, mock_popen):
         self.assertCountEqual(['mirror.readme'],
                               spec_rpm_mismatch.retrieve_dir_contents('http://lighttpd-server/'))
@@ -211,7 +223,10 @@ class TestRetrieveDirContents(unittest.TestCase):
 <pre> 9/28/2021  1:54 PM        &lt;dir&gt; <a href="software/">software</a><br> 9/28/2021  7:57 AM          102 <a href="mirror.readme">mirror.readme</a><br></pre><hr></body></html>
 """)
 
-    @mock.patch('os.popen', return_value=io.StringIO(IIS_LISTING))
+    @mock.patch('subprocess.Popen', return_value=mock.MagicMock(
+        __enter__=mock.MagicMock(
+            return_value=mock.MagicMock(
+                stdout=io.StringIO(IIS_LISTING), returncode=0))))
     def test_retrieve_dir_contents_iis(self, mock_popen):
         self.assertCountEqual(['mirror.readme'],
                               spec_rpm_mismatch.retrieve_dir_contents('http://iis-server/'))
@@ -221,7 +236,10 @@ class TestRetrieveDirContents(unittest.TestCase):
         software
     """)
 
-    @mock.patch('os.popen', return_value=io.StringIO(FTP_LISTING))
+    @mock.patch('subprocess.Popen', return_value=mock.MagicMock(
+        __enter__=mock.MagicMock(
+            return_value=mock.MagicMock(
+                stdout=FTP_LISTING.splitlines(keepends=True), returncode=0))))
     def test_retrieve_dir_contents_ftp(self, mock_popen):
         self.assertCountEqual(['mirror.readme', 'software'],
                               spec_rpm_mismatch.retrieve_dir_contents('ftp://generic-ftp/'))
@@ -263,12 +281,18 @@ class TestRetrieveAllPackages(unittest.TestCase):
 class TestGetSrpmNameStubFromSpec(unittest.TestCase):
     """Test get_srpm_name_stub_from_spec."""
 
-    @mock.patch('os.popen', return_value=io.StringIO('foo-bar-1.23-4.NOREL\nlib64foobar0-1.23-4.NOREL\n'))
+    @mock.patch('subprocess.Popen', return_value=mock.MagicMock(
+        __enter__=mock.MagicMock(
+            return_value=mock.MagicMock(
+                stdout=io.StringIO('foo-bar-1.23-4.NOREL\nlib64foobar0-1.23-4.NOREL\n'), returncode=0))))
     def test_get_srpm_name_stub_from_spec(self, mock_popen):
         self.assertEqual('foo-bar-1.23-4.NOREL',
                          spec_rpm_mismatch.get_srpm_name_stub_from_spec('dummy.spec', 'NOREL'))
 
-    @mock.patch('os.popen', return_value=io.StringIO(''))
+    @mock.patch('subprocess.Popen', return_value=mock.MagicMock(
+        __enter__=mock.MagicMock(
+            return_value=mock.MagicMock(
+                stdout=io.StringIO(''), returncode=0))))
     def test_get_srpm_name_stub_from_spec_empty(self, mock_popen):
         self.assertEqual('', spec_rpm_mismatch.get_srpm_name_stub_from_spec('not-spec', 'NOREL'))
 

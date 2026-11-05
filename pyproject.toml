@@ -78,7 +78,7 @@ include-package-data = false
 
 # flake8-pyproject must be installed for flake8 to use these settings
 [tool.flake8]
-ignore = ["D107", "D204", "PAR101", "PAR103", "PLU002", "SFS301", "W503"]
+ignore = ["D107", "D204", "PAR101", "PLU002", "SFS301", "W503"]
 docstring-convention = "google"
 blanks-before-imports = 1
 # TODO: bring this down

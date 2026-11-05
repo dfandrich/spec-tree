@@ -217,23 +217,23 @@ def retrieve_all_packages(srpm_source: str) -> tuple[set[str], dict[str, str]]:
         url = srpm_source.format(version=SRPM_VERSION, media=media, section=SRPM_SECTION)
         listing = retrieve_dir_contents(url)
         if not listing:
-            raise RuntimeError('Error retrieving listing from ' + url)
+            raise RuntimeError('Error retrieving listing from %s', url)
 
         rpm_re = re.compile(r'^.*\.rpm$')
         rpms = [f for f in listing if rpm_re.match(f)]
         if not rpms:
-            error('Warning: No results from ' + url)
+            error('Warning: No results from %s', url)
 
         info('%d packages found in media %s', len(rpms), media)
 
         for rpm in rpms:
             package = package_name(rpm)
             if not package:
-                error('Cannot determine package name for ' + rpm)
+                error('Cannot determine package name for %s', rpm)
                 continue
             rpm_base = rpm_base_name(rpm)
             if not rpm_base:
-                error('Cannot determine base name for ' + rpm)
+                error('Cannot determine base name for %s', rpm)
                 continue
             all_packages[package] = rpm_base
             all_rpms.add(rpm_base)
